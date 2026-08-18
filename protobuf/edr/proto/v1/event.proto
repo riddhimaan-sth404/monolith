@@ -1,0 +1,275 @@
+syntax = "proto3";
+
+package edr.proto.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+import "edr/proto/v1/common.proto";
+import "edr/proto/v1/driver.proto";
+
+option go_package = "github.com/edr/scanner/internal/grpc/pb";
+
+message Event {
+  UUID id = 1;
+  UUID endpoint_id = 2;
+  EventType event_type = 3;
+  google.protobuf.Timestamp timestamp = 4;
+  google.protobuf.Timestamp collected_at = 5;
+  uint64 sequence_number = 6;
+
+  // Event-specific payload (oneof)
+  oneof payload {
+    ProcessCreateEvent process_create = 10;
+    ProcessExitEvent process_exit = 11;
+    ThreadCreateEvent thread_create = 12;
+    ThreadExitEvent thread_exit = 13;
+    ModuleLoadEvent module_load = 14;
+    RegistryChangeEvent registry_change = 15;
+    FileEvent file_event = 16;
+    NetworkConnectEvent network_connect = 17;
+    DnsQueryEvent dns_query = 18;
+    DriverLoadEvent driver_load = 19;
+    ServiceCreateEvent service_create = 20;
+    ScheduledTaskEvent scheduled_task = 21;
+    UsbInsertEvent usb_insert = 22;
+    UserLogonEvent user_logon = 23;
+    UserLogoffEvent user_logoff = 24;
+    PowerShellEvent powershell = 25;
+    WmiEvent wmi = 26;
+    DriverTelemetryEvent driver_telemetry = 27;
+    ScannerResultEvent scanner_result = 28;
+    MemorySuspiciousEvent memory_suspicious = 29;
+  }
+
+message MemorySuspiciousEvent {
+  DriverMemorySuspicious suspicious = 1;
+}
+
+  repeated MetadataEntry metadata = 100;
+}
+
+message ProcessCreateEvent {
+  ProcessInfo process = 1;
+  string parent_name = 2;
+  string parent_path = 3;
+  string parent_command_line = 4;
+  FileHashes parent_hashes = 5;
+}
+
+message ProcessExitEvent {
+  uint32 pid = 1;
+  uint32 exit_code = 2;
+  uint64 run_time_nanos = 3;
+  google.protobuf.Timestamp exit_time = 4;
+}
+
+message ThreadCreateEvent {
+  uint32 pid = 1;
+  uint32 tid = 2;
+  uint32 creator_pid = 3;
+  uint32 creator_tid = 4;
+  google.protobuf.Timestamp create_time = 5;
+}
+
+message ThreadExitEvent {
+  uint32 pid = 1;
+  uint32 tid = 2;
+  uint32 exit_code = 3;
+}
+
+message ModuleLoadEvent {
+  uint32 pid = 1;
+  string module_path = 2;
+  string module_name = 3;
+  uint64 base_address = 4;
+  uint64 module_size = 5;
+  FileHashes hashes = 6;
+  SignatureInfo signature = 7;
+  string process_name = 8;
+}
+
+message RegistryChangeEvent {
+  string key_path = 1;
+  string value_name = 2;
+  string old_value = 3;
+  string new_value = 4;
+  uint32 pid = 5;
+  string process_name = 6;
+  enum RegistryOperation {
+    REG_OP_UNSPECIFIED = 0;
+    REG_OP_CREATE_KEY = 1;
+    REG_OP_DELETE_KEY = 2;
+    REG_OP_SET_VALUE = 3;
+    REG_OP_DELETE_VALUE = 4;
+    REG_OP_RENAME_KEY = 5;
+  }
+  RegistryOperation operation = 7;
+}
+
+message FileEvent {
+  string path = 1;
+  string name = 2;
+  string extension = 3;
+  uint64 size = 4;
+  FileHashes hashes = 5;
+  uint32 pid = 6;
+  string process_name = 7;
+  enum FileOperation {
+    FILE_OP_UNSPECIFIED = 0;
+    FILE_OP_CREATE = 1;
+    FILE_OP_WRITE = 2;
+    FILE_OP_DELETE = 3;
+    FILE_OP_RENAME = 4;
+    FILE_OP_OPEN = 5;
+  }
+  FileOperation operation = 8;
+}
+
+message NetworkConnectEvent {
+  uint32 pid = 1;
+  string process_name = 2;
+  string local_address = 3;
+  uint32 local_port = 4;
+  string remote_address = 5;
+  uint32 remote_port = 6;
+  string protocol = 7; // "TCP", "UDP"
+  enum Direction {
+    DIRECTION_UNSPECIFIED = 0;
+    DIRECTION_OUTBOUND = 1;
+    DIRECTION_INBOUND = 2;
+  }
+  Direction direction = 8;
+}
+
+message DnsQueryEvent {
+  uint32 pid = 1;
+  string process_name = 2;
+  string query = 3;
+  repeated string answers = 4;
+  string query_type = 5; // "A", "AAAA", "CNAME", etc.
+  uint32 response_code = 6;
+}
+
+message DriverLoadEvent {
+  string driver_path = 1;
+  string driver_name = 2;
+  string publisher = 3;
+  string version = 4;
+  FileHashes hashes = 5;
+  SignatureInfo signature = 6;
+  string service_name = 7;
+}
+
+message ServiceCreateEvent {
+  string service_name = 1;
+  string display_name = 2;
+  string image_path = 3;
+  string service_type = 4;
+  string start_type = 5;
+  string account_name = 6;
+  uint32 pid = 7;
+  string process_name = 8;
+}
+
+message ScheduledTaskEvent {
+  string task_name = 1;
+  string task_path = 2;
+  string task_command = 3;
+  string task_arguments = 4;
+  string trigger_type = 5;
+  string user_context = 6;
+  bool enabled = 7;
+  uint32 pid = 8;
+  string process_name = 9;
+  enum ScheduledTaskOperation {
+    TASK_OP_UNSPECIFIED = 0;
+    TASK_OP_CREATE = 1;
+    TASK_OP_UPDATE = 2;
+    TASK_OP_DELETE = 3;
+    TASK_OP_RUN = 4;
+  }
+  ScheduledTaskOperation operation = 10;
+}
+
+message UsbInsertEvent {
+  string device_id = 1;
+  string vendor_id = 2;
+  string product_id = 3;
+  string serial_number = 4;
+  string volume_name = 5;
+  string drive_letter = 6;
+  uint64 size_bytes = 7;
+  string filesystem = 8;
+}
+
+message UserLogonEvent {
+  string user_sid = 1;
+  string user_name = 2;
+  string domain = 3;
+  uint32 session_id = 4;
+  string logon_type = 5; // "Interactive", "Network", "Service", etc.
+  string logon_process = 6;
+  uint32 pid = 7;
+  string process_name = 8;
+  string ip_address = 9;
+  google.protobuf.Timestamp logon_time = 10;
+}
+
+message UserLogoffEvent {
+  string user_sid = 1;
+  string user_name = 2;
+  uint32 session_id = 3;
+  google.protobuf.Timestamp logoff_time = 4;
+}
+
+message PowerShellEvent {
+  uint32 pid = 1;
+  string process_name = 2;
+  string command = 3;
+  string script_path = 4;
+  bool is_encoded = 5;
+  bool is_downloaded = 6;
+  string script_content = 7;
+  FileHashes script_hashes = 8;
+  bool obfuscated = 9;
+}
+
+message WmiEvent {
+  string query = 1;
+  string namespace = 2;
+  string class_name = 3;
+  uint32 pid = 4;
+  string process_name = 5;
+  enum WmiOperation {
+    WMI_OP_UNSPECIFIED = 0;
+    WMI_OP_EXECUTE_QUERY = 1;
+    WMI_OP_EXECUTE_METHOD = 2;
+    WMI_OP_CREATE_INSTANCE = 3;
+    WMI_OP_DELETE_INSTANCE = 4;
+    WMI_OP_SUBSCRIBE = 5;
+  }
+  WmiOperation operation = 6;
+}
+
+message DriverTelemetryEvent {
+  uint32 pid = 1;
+  uint32 tid = 2;
+  string image_path = 3;
+  string command_line = 4;
+  string user_sid = 5;
+  string integrity_level = 6;
+  uint32 session_id = 7;
+  uint32 parent_pid = 8;
+  string parent_image_path = 9;
+  FileHashes image_hashes = 10;
+}
+
+message ScannerResultEvent {
+  string file_path = 1;
+  FileHashes hashes = 2;
+  bool malicious = 3;
+  double score = 4;
+  repeated string matched_rules = 5;
+  string scanner_message = 6;
+  bool quarantined = 7;
+}

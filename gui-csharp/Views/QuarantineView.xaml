@@ -1,0 +1,44 @@
+<UserControl x:Class="MonolithGui.Views.QuarantineView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="600" d:DesignWidth="800">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header Bar -->
+        <Grid Grid.Row="0" Margin="0,0,0,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="220"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="Quarantine Vault" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+            <TextBlock Grid.Column="1" Text="Search:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource MutedBrush}"/>
+            <TextBox Grid.Column="2" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Height="28"/>
+        </Grid>
+
+        <!-- Quarantined Items Grid -->
+        <DataGrid Grid.Row="1" ItemsSource="{Binding QuarantineItems}" SelectedItem="{Binding SelectedQuarantineItem}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Original Path" Binding="{Binding OriginalPath}" Width="2*"/>
+                <DataGridTextColumn Header="Quarantine Isolation Path" Binding="{Binding QuarantinePath}" Width="2*"/>
+                <DataGridTextColumn Header="Verdict" Binding="{Binding Verdict}" Width="100"/>
+                <DataGridTextColumn Header="Size (bytes)" Binding="{Binding Size}" Width="100"/>
+                <DataGridTextColumn Header="Isolated At" Binding="{Binding CreatedAt}" Width="160"/>
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <!-- Actions Footer -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="Restore File to Original Location" Style="{StaticResource PrimaryButton}" Margin="0,0,10,0" Command="{Binding RestoreQuarantineCommand}" IsEnabled="{Binding IsItemSelected}"/>
+            <Button Content="Permanently Delete File" Style="{StaticResource DangerButton}" Command="{Binding DeleteQuarantineCommand}" IsEnabled="{Binding IsItemSelected}"/>
+        </StackPanel>
+    </Grid>
+</UserControl>

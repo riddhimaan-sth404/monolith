@@ -1,0 +1,173 @@
+// Copyright 2020 by FireEye, Inc.
+// You may not use this file except in compliance with the license. The license should have been received with this file. You may obtain a copy of the license at:
+// https://github.com/fireeye/sunburst_countermeasures/blob/main/LICENSE.txt
+
+rule APT_Backdoor_SUNBURST_1
+{
+    meta:
+        author = "FireEye"
+        description = "This rule is looking for portions of the SUNBURST backdoor that are vital to how it functions. The first signature fnv_xor matches a magic byte xor that the sample performs on process, service, and driver names/paths. SUNBURST is a backdoor that has the ability to spawn and kill processes, write and delete files, set and create registry keys, gather system information, and disable a set of forensic analysis tools and services."
+        reference = "https://www.fireeye.com/blog/threat-research/2020/12/evasive-attacker-leverages-solarwinds-supply-chain-compromises-with-sunburst-backdoor.html"
+        date = "2020-12-14"
+        score = 85
+        id = "74b44844-5575-53d7-819b-ab1b2327a144"
+    strings:
+        $cmd_regex_encoded = "U4qpjjbQtUzUTdONrTY2q42pVapRgooABYxQuIZmtUoA" ascii 
+        $cmd_regex_plain = { 5C 7B 5B 30 2D 39 61 2D 66 2D 5D 7B 33 36 7D 5C 7D 22 7C 22 5B 30 2D 39 61 2D 66 5D 7B 33 32 7D 22 7C 22 5B 30 2D 39 61 2D 66 5D 7B 31 36 7D }
+        $fake_orion_event_encoded = "U3ItS80rCaksSFWyUvIvyszPU9IBAA==" ascii 
+        $fake_orion_event_plain = { 22 45 76 65 6E 74 54 79 70 65 22 3A 22 4F 72 69 6F 6E 22 2C }
+        $fake_orion_eventmanager_encoded = "U3ItS80r8UvMTVWyUgKzfRPzEtNTi5R0AA==" ascii 
+        $fake_orion_eventmanager_plain = { 22 45 76 65 6E 74 4E 61 6D 65 22 3A 22 45 76 65 6E 74 4D 61 6E 61 67 65 72 22 2C }
+        $fake_orion_message_encoded = "U/JNLS5OTE9VslKqNqhVAgA=" ascii 
+        $fake_orion_message_plain = { 22 4D 65 73 73 61 67 65 22 3A 22 7B 30 7D 22 }
+        $fnv_xor = { 67 19 D8 A7 3B 90 AC 5B }
+condition:
+        $fnv_xor and ($cmd_regex_encoded or $cmd_regex_plain) or ( ($fake_orion_event_encoded or $fake_orion_event_plain) and ($fake_orion_eventmanager_encoded or $fake_orion_eventmanager_plain) and ($fake_orion_message_encoded and $fake_orion_message_plain) )
+}
+rule APT_Backdoor_SUNBURST_2
+{
+    meta:
+        author = "FireEye"
+        description = "The SUNBURST backdoor uses a domain generation algorithm (DGA) as part of C2 communications. This rule is looking for each branch of the code that checks for which HTTP method is being used. This is in one large conjunction, and all branches are then tied together via disjunction. The grouping is intentionally designed so that if any part of the DGA is re-used in another sample, this signature should match that re-used portion. SUNBURST is a backdoor that has the ability to spawn and kill processes, write and delete files, set and create registry keys, gather system information, and disable a set of forensic analysis tools and services."
+        reference = "https://www.fireeye.com/blog/threat-research/2020/12/evasive-attacker-leverages-solarwinds-supply-chain-compromises-with-sunburst-backdoor.html"
+        date = "2020-12-14"
+        score = 85
+        id = "329071d5-c9c6-5ae1-a514-aea9f4037bac"
+    strings:
+        $a = "0y3Kzy8BAA==" ascii 
+        $aa = "S8vPKynWL89PS9OvNqjVrTYEYqNa3fLUpDSgTLVxrR5IzggA" ascii 
+        $ab = "S8vPKynWL89PS9OvNqjVrTYEYqPaauNaPZCYEQA=" ascii 
+        $ac = "C88sSs1JLS4GAA==" ascii 
+        $ad = "C/UEAA==" ascii 
+        $ae = "C89MSU8tKQYA" ascii 
+        $af = "8wvwBQA=" ascii 
+        $ag = "cyzIz8nJBwA=" ascii 
+        $ah = "c87JL03xzc/LLMkvysxLBwA=" ascii 
+        $ai = "88tPSS0GAA==" ascii 
+        $aj = "C8vPKc1NLQYA" ascii 
+        $ak = "88wrSS1KS0xOLQYA" ascii 
+        $al = "c87PLcjPS80rKQYA" ascii 
+        $am = "Ky7PLNAvLUjRBwA=" ascii 
+        $an = "06vIzQEA" ascii 
+        $b = "0y3NyyxLLSpOzIlPTgQA" ascii 
+        $c = "001OBAA=" ascii 
+        $d = "0y0oysxNLKqMT04EAA==" ascii 
+        $e = "0y3JzE0tLknMLQAA" ascii 
+        $f = "003PyU9KzAEA" ascii 
+        $h = "0y1OTS4tSk1OBAA=" ascii 
+        $i = "K8jO1E8uytGvNqitNqytNqrVA/IA" ascii 
+        $j = "c8rPSQEA" ascii 
+        $k = "c8rPSfEsSczJTAYA" ascii 
+        $l = "c60oKUp0ys9JAQA=" ascii 
+        $m = "c60oKUp0ys9J8SxJzMlMBgA=" ascii 
+        $n = "8yxJzMlMBgA=" ascii 
+        $o = "88lMzygBAA==" ascii 
+        $p = "88lMzyjxLEnMyUwGAA==" ascii 
+        $q = "C0pNL81JLAIA" ascii 
+        $r = "C07NzXTKz0kBAA==" ascii 
+        $s = "C07NzXTKz0nxLEnMyUwGAA==" ascii 
+        $t = "yy9IzStOzCsGAA==" ascii 
+        $u = "y8svyQcA" ascii 
+        $v = "SytKTU3LzysBAA==" ascii 
+        $w = "C84vLUpOdc5PSQ0oygcA" ascii 
+        $x = "C84vLUpODU4tykwLKMoHAA==" ascii 
+        $y = "C84vLUpO9UjMC07MKwYA" ascii 
+        $z = "C84vLUpO9UjMC04tykwDAA==" ascii 
+condition:
+        ($a and $b and $c and $d and $e and $f and $h and $i) or ($j and $k and $l and $m and $n and $o and $p and $q and $r and $s and ($aa or $ab)) or ($t and $u and $v and $w and $x and $y and $z and ($aa or $ab)) or ($ac and $ad and $ae and $af and $ag and $ah and ($am or $an)) or ($ai and $aj and $ak and $al and ($am or $an))
+}
+rule APT_Webshell_SUPERNOVA_1
+{
+    meta:
+        author = "FireEye"
+        description = "SUPERNOVA is a .NET web shell backdoor masquerading as a legitimate SolarWinds web service handler. SUPERNOVA inspects and responds to HTTP requests with the appropriate HTTP query strings, Cookies, and/or HTML form values (e.g. named codes, class, method, and args). This rule is looking for specific strings and attributes related to SUPERNOVA."
+        reference = "https://www.fireeye.com/blog/threat-research/2020/12/evasive-attacker-leverages-solarwinds-supply-chain-compromises-with-sunburst-backdoor.html"
+        date = "2020-12-14"
+        score = 85
+        id = "73a27fa2-a846-5f4b-8182-064ac06c71a8"
+    strings:
+        $compile1 = "CompileAssemblyFromSource"
+        $compile2 = "CreateCompiler"
+        $context = "ProcessRequest"
+        $httpmodule = "IHttpHandler" ascii
+        $string1 = "clazz"
+        $string2 = "//NetPerfMon//images//NoLogo.gif" ascii 
+        $string3 = "SolarWinds" ascii 
+condition:
+    any of them
+}
+rule APT_Webshell_SUPERNOVA_2
+{
+    meta:
+        author = "FireEye"
+        description = "This rule is looking for specific strings related to SUPERNOVA. SUPERNOVA is a .NET web shell backdoor masquerading as a legitimate SolarWinds web service handler. SUPERNOVA inspects and responds to HTTP requests with the appropriate HTTP query strings, Cookies, and/or HTML form values (e.g. named codes, class, method, and args)."
+        reference = "https://www.fireeye.com/blog/threat-research/2020/12/evasive-attacker-leverages-solarwinds-supply-chain-compromises-with-sunburst-backdoor.html"
+        date = "2020-12-14"
+        score = 85
+        id = "c39bf9ba-fd62-5619-92b6-1633375ef197"
+    strings:
+        $dynamic = "DynamicRun"
+        $solar = "Solarwinds" 
+        $string1 = "codes"
+        $string2 = "clazz"
+        $string3 = "method"
+        $string4 = "args"
+condition:
+    any of them
+}
+rule APT_HackTool_PS1_COSMICGALE_1
+{
+    meta:
+        author = "FireEye"
+        description = "This rule detects various unique strings related to COSMICGALE. COSMICGALE is a credential theft and reconnaissance PowerShell script that collects credentials using the publicly available Get-PassHashes routine. COSMICGALE clears log files, writes acquired data to a hard coded path, and encrypts the file with a password."
+        reference = "https://www.fireeye.com/blog/threat-research/2020/12/evasive-attacker-leverages-solarwinds-supply-chain-compromises-with-sunburst-backdoor.html"
+        date = "2020-12-14"
+        score = 85
+        id = "c094943c-288e-5835-8066-8e95a992c76c"
+    strings:
+        $sr1 = /\[byte\[\]\]@\([\x09\x20]{0,32}0xaa[\x09\x20]{0,32},[\x09\x20]{0,32}0xd3[\x09\x20]{0,32},[\x09\x20]{0,32}0xb4[\x09\x20]{0,32},[\x09\x20]{0,32}0x35[\x09\x20]{0,32},/ ascii
+        $sr2 = /\[bitconverter\]::toint32\(\$\w{1,64}\[0x0c..0x0f\][\x09\x20]{0,32},[\x09\x20]{0,32}0\)[\x09\x20]{0,32}\+[\x09\x20]{0,32}0xcc\x3b/ ascii
+        $sr3 = /\[byte\[\]\]\(\$\w{1,64}\.padright\(\d{1,2}\)\.substring\([\x09\x20]{0,32}0[\x09\x20]{0,32},[\x09\x20]{0,32}\d{1,2}\)\.tochararray\(\)\)/ ascii
+        $ss1 = "[text.encoding]::ascii.getbytes(\"ntpassword\x600\");" ascii
+        $ss2 = "system\\currentcontrolset\\control\\lsa\\$_" ascii 
+        $ss3 = "[security.cryptography.md5]::create()" ascii 
+        $ss4 = "[system.security.principal.windowsidentity]::getcurrent().name" ascii 
+        $ss5 = "out-file" ascii 
+        $ss6 = "convertto-securestring" ascii 
+condition:
+        all of them
+}
+rule APT_Dropper_Raw64_TEARDROP_1
+{
+    meta:
+        author = "FireEye"
+        description = "This rule looks for portions of the TEARDROP backdoor that are vital to how it functions. TEARDROP is a memory only dropper that can read files and registry keys, XOR decode an embedded payload, and load the payload into memory. TEARDROP persists as a Windows service and has been observed dropping Cobalt Strike BEACON into memory."
+        reference = "https://www.fireeye.com/blog/threat-research/2020/12/evasive-attacker-leverages-solarwinds-supply-chain-compromises-with-sunburst-backdoor.html"
+        date = "2020-12-14"
+        score = 85
+        id = "88adad58-ba16-5996-9ea8-ea356c3ed5b2"
+    strings:
+        $sb1 = { C7 44 24 ?? 80 00 00 00 [0-64] BA 00 00 00 80 [0-32] 48 8D 0D [4-32] FF 15 [4] 48 83 F8 FF [2-64] 41 B8 40 00 00 00 [0-64] FF 15 [4-5] 85 C0 7? ?? 80 3D [4] FF }
+        $sb2 = { 80 3D [4] D8 [2-32] 41 B8 04 00 00 00 [0-32] C7 44 24 ?? 4A 46 49 46 [0-32] E8 [4-5] 85 C0 [2-32] C6 05 [4] 6A C6 05 [4] 70 C6 05 [4] 65 C6 05 [4] 67 }
+        $sb3 = { BA [4] 48 89 ?? E8 [4] 41 B8 [4] 48 89 ?? 48 89 ?? E8 [4] 85 C0 7? [1-32] 8B 44 24 ?? 48 8B ?? 24 [1-16] 48 01 C8 [0-32] FF D0 }
+condition:
+        all of them
+}
+rule APT_Dropper_Win64_TEARDROP_1
+{
+    meta:
+        author = "FireEye"
+        description = "This rule is intended match specific sequences of opcode found within TEARDROP, including those that decode the embedded payload. TEARDROP is a memory only dropper that can read files and registry keys, XOR decode an embedded payload, and load the payload into memory. TEARDROP persists as a Windows service and has been observed dropping Cobalt Strike BEACON into memory. (comment by Nextron: prone to False Positives)"
+        reference = "https://www.fireeye.com/blog/threat-research/2020/12/evasive-attacker-leverages-solarwinds-supply-chain-compromises-with-sunburst-backdoor.html"
+        date = "2020-12-14"
+        score = 70
+        id = "15dfdb74-5ca3-5bc6-be7a-730333b03ba5"
+    strings:
+        $loc_4218FE24A5 = { 48 89 C8 45 0F B6 4C 0A 30 }
+        $loc_4218FE36CA = { 48 C1 E0 04 83 C3 01 48 01 E8 8B 48 28 8B 50 30 44 8B 40 2C 48 01 F1 4C 01 FA }
+        $loc_4218FE2747 = { C6 05 ?? ?? ?? ?? 6A C6 05 ?? ?? ?? ?? 70 C6 05 ?? ?? ?? ?? 65 C6 05 ?? ?? ?? ?? 67 }
+        $loc_5551D725A0 = { 48 89 C8 45 0F B6 4C 0A 30 48 89 CE 44 89 CF 48 F7 E3 48 C1 EA 05 48 8D 04 92 48 8D 04 42 48 C1 E0 04 48 29 C6 }
+        $loc_5551D726F6 = { 53 4F 46 54 57 41 52 45 ?? ?? ?? ?? 66 74 5C 43 ?? ?? ?? ?? 00 }
+condition:
+        (uint16(0) == 0x5A4D and uint32(uint32(0x3C)) == 0x00004550) and any of them
+}

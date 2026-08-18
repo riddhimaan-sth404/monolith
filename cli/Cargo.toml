@@ -1,0 +1,31 @@
+[package]
+name = "mono-cli"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "mono"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive", "env"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+chrono = { workspace = true }
+anyhow = { workspace = true }
+base64 = { workspace = true }
+uuid = { workspace = true, features = ["v4"] }
+
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+tabled = "0.18"
+tokio-tungstenite = "0.24"
+futures-util = "0.3"
+dirs = "6"
+colored = "3"
+toml = { workspace = true }
+csv = "1"
+http = "1"
+winreg = "0.52"
+sha2 = "0.10"
+monolith-shared = { path = "../shared" }

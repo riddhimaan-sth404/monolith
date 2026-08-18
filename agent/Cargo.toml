@@ -1,0 +1,57 @@
+[package]
+name = "monolith-agent"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "monolith-agent"
+path = "src/main.rs"
+
+[[bin]]
+name = "monolith-watchdog"
+path = "src/watchdog/main.rs"
+
+[dependencies]
+monolith-shared = { path = "../shared" }
+monolith-protobuf = { path = "../protobuf" }
+axum.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+futures.workspace = true
+tonic.workspace = true
+prost.workspace = true
+prost-types.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+rusqlite.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+dashmap.workspace = true
+windows-sys.workspace = true
+regex.workspace = true
+hex.workspace = true
+sha2.workspace = true
+hmac.workspace = true
+reqwest.workspace = true
+base64.workspace = true
+rand.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-service = { workspace = true }
+
+[features]
+default = []
+service = []
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+mockall.workspace = true

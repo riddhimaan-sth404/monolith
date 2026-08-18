@@ -1,0 +1,148 @@
+syntax = "proto3";
+
+package edr.proto.v1;
+
+import "google/protobuf/empty.proto";
+import "edr/proto/v1/common.proto";
+import "edr/proto/v1/endpoint.proto";
+import "edr/proto/v1/event.proto";
+import "edr/proto/v1/alert.proto";
+import "edr/proto/v1/policy.proto";
+import "edr/proto/v1/ioc.proto";
+import "edr/proto/v1/scan.proto";
+
+option go_package = "github.com/edr/scanner/internal/grpc/pb";
+
+// Service for endpoint agent communication
+service EndpointService {
+  // Registration
+  rpc RegisterEndpoint(RegisterRequest) returns (RegisterResponse);
+
+  // Heartbeat
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+
+  // Telemetry upload (client-side streaming)
+  rpc UploadEvents(stream Event) returns (UploadResponse);
+
+  // Policy synchronization
+  rpc SyncPolicy(PolicyRequest) returns (PolicyResponse);
+
+  // Alert reporting
+  rpc ReportAlert(Alert) returns (AlertAck);
+
+  // Pending actions (server-side streaming)
+  rpc GetActions(ActionRequest) returns (stream ResponseAction);
+
+  // Action status update
+  rpc ReportActionStatus(ActionStatus) returns (ActionAck);
+
+  // IOC update check
+  rpc SyncIOCs(IOCCacheRequest) returns (IOCCacheResponse);
+}
+
+// Service for scanner communication
+service ScannerService {
+  // Scan management
+  rpc StartScan(ScanRequest) returns (ScanStatusMessage);
+  rpc StopScan(StopRequest) returns (ScanStatusMessage);
+  rpc GetScanStatus(StatusRequest) returns (ScanStatusMessage);
+
+  // Real-time scan results (server-side streaming)
+  rpc StreamScanResults(StatusRequest) returns (stream ScanResult);
+
+  // Scan summary when complete
+  rpc ReportScanSummary(ScanSummary) returns (ScanAck);
+
+  // Health check
+  rpc ScannerHealth(google.protobuf.Empty) returns (ScannerHealthResponse);
+}
+
+// Service for management/gui communication
+service ManagementService {
+  // Live event streaming (server-side streaming)
+  rpc StreamLiveEvents(EventStreamFilter) returns (stream Event);
+
+  // Execute response action
+  rpc ExecuteResponse(ExecuteResponseRequest) returns (ExecuteResponseResponse);
+
+  // Dashboard summary
+  rpc GetDashboardSummary(DashboardRequest) returns (DashboardResponse);
+}
+
+message UploadResponse {
+  uint32 events_accepted = 1;
+  uint32 events_rejected = 2;
+  repeated string error_messages = 3;
+}
+
+message AlertAck {
+  bool received = 1;
+  string alert_id = 2;
+}
+
+message ActionAck {
+  bool received = 1;
+}
+
+message IOCCacheRequest {
+  string endpoint_id = 1;
+  uint32 current_version = 2;
+}
+
+message IOCCacheResponse {
+  uint32 new_version = 1;
+  repeated IOC updated_iocs = 2;
+  repeated string deleted_ioc_ids = 3;
+  bool full_sync = 4;
+}
+
+message ScanAck {
+  bool received = 1;
+}
+
+message ScannerHealthResponse {
+  bool healthy = 1;
+  string version = 2;
+  uint64 uptime_seconds = 3;
+  uint32 rules_loaded = 4;
+  uint32 active_workers = 5;
+  double cpu_usage = 6;
+  uint64 memory_bytes = 7;
+}
+
+message EventStreamFilter {
+  repeated EventType event_types = 1;
+  repeated string endpoint_ids = 2;
+  Severity min_severity = 3;
+  string search = 4;
+}
+
+message ExecuteResponseRequest {
+  string endpoint_id = 1;
+  ResponseActionType action_type = 2;
+  bytes parameters = 3;
+  string reason = 4;
+}
+
+message ExecuteResponseResponse {
+  string action_id = 1;
+  bool accepted = 2;
+  string message = 3;
+}
+
+message DashboardRequest {
+  uint32 alert_hours = 1;
+  uint32 event_hours = 2;
+}
+
+message DashboardResponse {
+  uint32 total_endpoints = 1;
+  uint32 online_endpoints = 2;
+  uint32 offline_endpoints = 3;
+  uint32 isolated_endpoints = 4;
+  AlertSummary alert_summary = 5;
+  uint32 events_last_hour = 6;
+  uint32 iocs_total = 7;
+  uint32 active_scans = 8;
+  repeated EndpointStatus top_endpoints = 9;
+}

@@ -1,0 +1,7 @@
+{
+  "name": "EMBER 2024 PE Model",
+  "task": "binary",
+  "num_classes": 1,
+  "num_features": 2381,
+  "trees": []
+}

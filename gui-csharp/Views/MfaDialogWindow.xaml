@@ -1,0 +1,27 @@
+<Window x:Class="MonolithGui.Views.MfaDialogWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Multi-Factor Authentication Required"
+        Height="220" Width="380"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="{StaticResource BackgroundBrush}">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="MFA Security Verification" FontSize="16" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" Margin="0,0,0,8"/>
+        <TextBlock Grid.Row="1" Text="Enter the 6-digit TOTP code from your authenticator app:" FontSize="12" Foreground="{StaticResource SubtextBrush}" TextWrapping="Wrap" Margin="0,0,0,16"/>
+
+        <TextBox Grid.Row="2" x:Name="TxtMfaCode" FontSize="16" FontWeight="Bold" HorizontalContentAlignment="Center" MaxLength="6" Height="34" Margin="0,0,0,16"/>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Verify" Style="{StaticResource PrimaryButton}" Width="90" Margin="0,0,8,0" Click="BtnVerify_Click"/>
+            <Button Content="Cancel" Width="80" Click="BtnCancel_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

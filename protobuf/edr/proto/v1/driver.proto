@@ -1,0 +1,144 @@
+syntax = "proto3";
+
+package edr.proto.v1;
+
+import "google/protobuf/timestamp.proto";
+import "edr/proto/v1/common.proto";
+
+option go_package = "github.com/edr/scanner/internal/grpc/pb";
+
+// Driver telemetry event types
+enum DriverEventType {
+  DRIVER_EVENT_UNSPECIFIED = 0;
+  DRIVER_EVENT_PROCESS_CREATE = 1;
+  DRIVER_EVENT_PROCESS_TERMINATE = 2;
+  DRIVER_EVENT_THREAD_CREATE = 3;
+  DRIVER_EVENT_THREAD_TERMINATE = 4;
+  DRIVER_EVENT_IMAGE_LOAD = 5;
+  DRIVER_EVENT_REGISTRY_CREATE_KEY = 6;
+  DRIVER_EVENT_REGISTRY_DELETE_KEY = 7;
+  DRIVER_EVENT_REGISTRY_SET_VALUE = 8;
+  DRIVER_EVENT_REGISTRY_DELETE_VALUE = 9;
+  DRIVER_EVENT_REGISTRY_RENAME_KEY = 10;
+  DRIVER_EVENT_OBJECT_HANDLE_CREATE = 11;
+  DRIVER_EVENT_OBJECT_HANDLE_DUPLICATE = 12;
+  DRIVER_EVENT_MEMORY_SUSPICIOUS = 13;
+}
+
+message DriverMemorySuspicious {
+  uint32 process_id = 1;
+  string process_name = 2;
+  uint64 base_address = 3;
+  uint64 region_size = 4;
+  uint32 protect = 5;
+  uint32 memory_type = 6;
+  uint32 suspicion_flags = 7;
+}
+
+// Raw telemetry entry from the ring buffer
+message DriverTelemetryRaw {
+  DriverEventType event_type = 1;
+  uint64 sequence_number = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  uint32 processor_number = 4;
+  bytes payload = 5;
+}
+
+message DriverProcessCreate {
+  uint32 pid = 1;
+  uint32 parent_pid = 2;
+  uint32 session_id = 3;
+  uint32 creator_process_id = 4;
+  string image_path = 5;
+  string command_line = 6;
+  string user_sid = 7;
+  string integrity_level = 8;
+  uint64 create_time = 9;
+  uint32 thread_id = 10;
+}
+
+message DriverProcessTerminate {
+  uint32 pid = 1;
+  uint32 exit_code = 2;
+  uint64 run_time_nanos = 3;
+}
+
+message DriverThreadCreate {
+  uint32 pid = 1;
+  uint32 tid = 2;
+  uint32 creator_pid = 3;
+  uint32 creator_tid = 4;
+}
+
+message DriverThreadTerminate {
+  uint32 pid = 1;
+  uint32 tid = 2;
+  uint32 exit_code = 3;
+}
+
+message DriverImageLoad {
+  uint32 pid = 1;
+  string image_path = 2;
+  uint64 base_address = 3;
+  uint64 image_size = 4;
+  uint32 load_flags = 5;
+  string process_name = 6;
+}
+
+message DriverRegistryOperation {
+  string key_path = 1;
+  string value_name = 2;
+  uint32 pid = 3;
+  string process_name = 4;
+  uint32 operation_type = 5;
+  bytes old_value_data = 6;
+  bytes new_value_data = 7;
+  uint32 old_value_type = 8;
+  uint32 new_value_type = 9;
+}
+
+message DriverObjectHandleCreate {
+  uint32 pid = 1;
+  uint64 object_address = 2;
+  uint32 handle_value = 3;
+  uint32 object_type = 4;
+  uint32 granted_access = 5;
+}
+
+message DriverObjectHandleDuplicate {
+  uint32 source_pid = 1;
+  uint32 target_pid = 2;
+  uint32 source_handle = 3;
+  uint32 target_handle = 4;
+  uint32 object_type = 5;
+  uint32 granted_access = 6;
+}
+
+// Driver statistics
+message DriverStats {
+  uint64 events_collected = 1;
+  uint64 events_dropped = 2;
+  uint64 buffer_size = 3;
+  uint64 buffer_used = 4;
+  uint64 read_index = 5;
+  uint64 write_index = 6;
+  uint32 callbacks_registered = 7;
+  uint32 pids_created = 8;
+  uint32 images_loaded = 9;
+  uint32 registry_operations = 10;
+  uint32 object_operations = 11;
+  google.protobuf.Timestamp driver_start_time = 12;
+  string driver_version = 13;
+  uint64 uptime_seconds = 14;
+}
+
+// IOCTL commands
+enum IoctlCommand {
+  IOCTL_UNSPECIFIED = 0;
+  IOCTL_GET_EVENTS = 1;
+  IOCTL_GET_STATS = 2;
+  IOCTL_GET_DRIVER_INFO = 3;
+  IOCTL_SET_LOG_LEVEL = 4;
+  IOCTL_QUERY_OPERATIONS = 5;
+  IOCTL_CLEAR_BUFFER = 6;
+}

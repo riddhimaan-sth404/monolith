@@ -1,0 +1,151 @@
+<UserControl x:Class="MonolithGui.Views.DashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="700" d:DesignWidth="1000">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Hero Protection Banner (Easy for Non-Technical Users) -->
+        <Border Grid.Row="0" Style="{StaticResource GlassCard}" Padding="24" Margin="0,0,0,20">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Shield Icon Badge -->
+                <Border Grid.Column="0" Width="64" Height="64" CornerRadius="32" Background="#2010B981" BorderBrush="#4D10B981" BorderThickness="1" Margin="0,0,20,0" VerticalAlignment="Center">
+                    <Path Data="M12,1L3,5v6c0,5.55,3.84,10.74,9,12c5.16-1.26,9-6.45,9-12V5L12,1z" Fill="{StaticResource SuccessBrush}" Width="28" Height="28" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+
+                <!-- Protection Status Info -->
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                        <TextBlock Text="System Protection Active" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
+                        <Border Background="#2010B981" CornerRadius="10" Padding="8,2" Margin="10,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="SECURE" FontSize="10" FontWeight="Bold" Foreground="{StaticResource SuccessBrush}"/>
+                        </Border>
+                    </StackPanel>
+                    <TextBlock Text="Kernel-level driver monitoring, YARA file inspection, and real-time process RAM scanner are operational." FontSize="12" Foreground="{StaticResource SubtextBrush}"/>
+                </StackPanel>
+
+                <!-- Quick Action Button -->
+                <Button Grid.Column="2" Content="Run Quick Scan" Style="{StaticResource PrimaryButton}" Height="44" Padding="20,0" Command="{Binding TriggerQuickScanCommand}" IsEnabled="{Binding IsScanning, Converter={StaticResource InverseBool}}" VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+
+        <!-- Scan Progress Panel (visible during active scan) -->
+        <Border Grid.Row="1" Style="{StaticResource GlassCard}" Padding="16" Margin="0,0,0,16" Visibility="{Binding IsScanning, Converter={StaticResource BoolToVis}}">
+            <StackPanel>
+                <Grid Margin="0,0,0,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="{Binding ScanStatus}" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource PrimaryBrush}"/>
+                    <Button Grid.Column="1" Content="Cancel Scan" Style="{StaticResource DangerButton}" Command="{Binding CancelScanCommand}"/>
+                </Grid>
+                <ProgressBar Value="{Binding ScanProgress}" Minimum="0" Maximum="100" Height="10" Margin="0,0,0,4"/>
+                <TextBlock Text="{Binding ScanPath}" FontSize="11" Foreground="{StaticResource MutedBrush}"/>
+            </StackPanel>
+        </Border>
+
+        <!-- 4 Key Metrics Stat Cards -->
+        <Grid Grid.Row="2" Margin="0,0,0,20">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Card 1: Health Score -->
+            <Border Grid.Column="0" Style="{StaticResource GlassCard}" Padding="16" Margin="0,0,12,0">
+                <StackPanel>
+                    <TextBlock Text="Health Score" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource SubtextBrush}"/>
+                    <TextBlock Text="{Binding Summary.HealthScore, StringFormat={}{0}%}" FontSize="32" FontWeight="Bold" Foreground="{StaticResource SuccessBrush}" Margin="0,6,0,2"/>
+                    <TextBlock Text="Optimal Security State" FontSize="10" Foreground="{StaticResource MutedBrush}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Card 2: Active Endpoints -->
+            <Border Grid.Column="1" Style="{StaticResource GlassCard}" Padding="16" Margin="0,0,12,0">
+                <StackPanel>
+                    <TextBlock Text="Protected Endpoints" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource SubtextBrush}"/>
+                    <TextBlock Text="{Binding Summary.ActiveEndpoints}" FontSize="32" FontWeight="Bold" Foreground="{StaticResource PrimaryBrush}" Margin="0,6,0,2"/>
+                    <TextBlock Text="Agents Online" FontSize="10" Foreground="{StaticResource MutedBrush}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Card 3: Open Threats -->
+            <Border Grid.Column="2" Style="{StaticResource GlassCard}" Padding="16" Margin="0,0,12,0">
+                <StackPanel>
+                    <TextBlock Text="Active Alerts" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource SubtextBrush}"/>
+                    <TextBlock Text="{Binding Summary.OpenAlerts}" FontSize="32" FontWeight="Bold" Foreground="{StaticResource DangerBrush}" Margin="0,6,0,2"/>
+                    <TextBlock Text="Action Required" FontSize="10" Foreground="{StaticResource MutedBrush}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Card 4: Threats Blocked -->
+            <Border Grid.Column="3" Style="{StaticResource GlassCard}" Padding="16">
+                <StackPanel>
+                    <TextBlock Text="Threats Neutralized" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource SubtextBrush}"/>
+                    <TextBlock Text="{Binding Summary.ThreatsBlocked}" FontSize="32" FontWeight="Bold" Foreground="{StaticResource WarningBrush}" Margin="0,6,0,2"/>
+                    <TextBlock Text="Auto-quarantined" FontSize="10" Foreground="{StaticResource MutedBrush}"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Live Telemetry Feed Glass Panel -->
+        <Border Grid.Row="3" Style="{StaticResource GlassCard}" Padding="20">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0" Margin="0,0,0,14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Width="8" Height="8" CornerRadius="4" Background="{StaticResource SuccessBrush}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="Live Security Telemetry Stream" FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextBrush}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Content="Refresh" Command="{Binding RefreshCommand}" Margin="0,0,12,0" Padding="8,2" FontSize="11" VerticalAlignment="Center"/>
+                        <TextBlock Text="WebSocket Connected" FontSize="11" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+
+                <ListBox Grid.Row="1" ItemsSource="{Binding LiveEvents}" Background="Transparent" BorderThickness="0" FontFamily="Consolas, Segoe UI" FontSize="12" Foreground="{StaticResource TextBrush}">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Padding" Value="8,4"/>
+                            <Setter Property="Margin" Value="0,2"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <Border Background="#20000000" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                </ListBox>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

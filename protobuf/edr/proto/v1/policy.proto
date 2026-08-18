@@ -1,0 +1,139 @@
+syntax = "proto3";
+
+package edr.proto.v1;
+
+import "google/protobuf/timestamp.proto";
+import "edr/proto/v1/common.proto";
+
+option go_package = "github.com/edr/scanner/internal/grpc/pb";
+
+message Policy {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  uint32 version = 4;
+  bool active = 5;
+
+  // Rule sets
+  repeated PolicyRule rules = 10;
+  PolicySettings settings = 11;
+
+  google.protobuf.Timestamp created_at = 20;
+  google.protobuf.Timestamp updated_at = 21;
+  string created_by = 22;
+  string updated_by = 23;
+}
+
+message PolicyRule {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  Severity severity = 4;
+  Confidence confidence = 5;
+  bool enabled = 6;
+
+  // Rule conditions
+  oneof condition {
+    IOCCondition ioc = 10;
+    YaraCondition yara = 11;
+    SigmaCondition sigma = 12;
+    ProcessCondition process = 13;
+    FileCondition file = 14;
+    RegistryCondition registry = 15;
+    NetworkCondition network = 16;
+    CompoundCondition compound = 17;
+  }
+
+  repeated string mitre_technique_ids = 20;
+  repeated string tags = 21;
+  string mitigation = 22;
+}
+
+message IOCCondition {
+  repeated IOCTYPE ioc_types = 1;
+  repeated string ioc_values = 2;
+  bool match_all = 3;
+}
+
+message YaraCondition {
+  string rule_name = 1;
+  bytes rule_content = 2;
+  string scan_path = 3;
+}
+
+message SigmaCondition {
+  string rule_name = 1;
+  bytes rule_content = 2;
+  repeated string log_sources = 3;
+}
+
+message ProcessCondition {
+  repeated string process_names = 1;
+  repeated string process_paths = 2;
+  string command_line_pattern = 3;
+  repeated string parent_processes = 4;
+  bool unsigned_only = 5;
+  uint32 child_count_threshold = 6;
+  uint32 create_rate_threshold = 7;
+}
+
+message FileCondition {
+  repeated string paths = 1;
+  repeated string extensions = 2;
+  string name_pattern = 3;
+  bool unsigned_only = 4;
+  uint64 min_size = 5;
+  uint64 max_size = 6;
+  uint32 min_entropy = 7;
+}
+
+message RegistryCondition {
+  repeated string key_paths = 1;
+  repeated string value_names = 2;
+  string value_pattern = 3;
+  repeated string autorun_locations = 4;
+}
+
+message NetworkCondition {
+  repeated string remote_addresses = 1;
+  repeated string remote_ports = 2;
+  repeated string protocols = 3;
+  repeated string dns_queries = 4;
+  bool suspicious_port = 5;
+}
+
+message CompoundCondition {
+  enum Operator {
+    OPERATOR_UNSPECIFIED = 0;
+    OPERATOR_AND = 1;
+    OPERATOR_OR = 2;
+    OPERATOR_NOT = 3;
+  }
+  Operator operator = 1;
+  repeated PolicyRule sub_rules = 2;
+  uint32 window_seconds = 3; // Correlation window for temporal rules
+}
+
+message PolicySettings {
+  bool real_time_protection = 1;
+  bool behavioral_monitoring = 2;
+  bool script_scanning = 3;
+  bool email_scanning = 4;
+  bool archive_scanning = 5;
+  bool removable_drive_scanning = 6;
+  bool network_protection = 7;
+  bool exploit_protection = 8;
+  uint32 max_cpu_scan_percent = 9;
+  uint32 max_memory_mb = 10;
+
+  // Response defaults
+  bool auto_quarantine = 20;
+  bool notify_on_detection = 21;
+  bool terminate_process_on_detection = 22;
+  bool isolate_on_critical = 23;
+
+  // Scan schedule
+  string quick_scan_cron = 30;
+  string full_scan_cron = 31;
+  string definition_update_cron = 32;
+}

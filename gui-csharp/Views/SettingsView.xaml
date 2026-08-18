@@ -1,0 +1,124 @@
+<UserControl x:Class="MonolithGui.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="700" d:DesignWidth="800">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="System Settings &amp; Security Verification" FontSize="20" FontWeight="Bold" Margin="0,0,0,16"/>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" BorderThickness="0">
+            <StackPanel Margin="0,0,0,16">
+
+                <!-- Server Configuration -->
+                <Border Background="{StaticResource CardBrush}" CornerRadius="10" Padding="16" Margin="0,0,0,12">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Text="EDR Management Server Connection" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource PrimaryBrush}" Margin="0,0,0,10"/>
+                        <Grid Grid.Row="1" Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Host:" FontSize="12" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBox Grid.Column="1" Text="{Binding SettingsHost, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,16,0" Height="28"/>
+                            <TextBlock Grid.Column="2" Text="Port:" FontSize="12" Foreground="{StaticResource MutedBrush}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBox Grid.Column="3" Text="{Binding SettingsPort, UpdateSourceTrigger=PropertyChanged}" Height="28"/>
+                        </Grid>
+                        <CheckBox Grid.Row="2" Content="Validate TLS Certificates (Strict Security Mode)" IsChecked="{Binding ValidateTls}"/>
+                    </Grid>
+                </Border>
+
+                <!-- General Preferences -->
+                <Border Background="{StaticResource CardBrush}" CornerRadius="10" Padding="16" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="General Preferences &amp; Heuristic Engines" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource PrimaryBrush}" Margin="0,0,0,8"/>
+                        <CheckBox Content="Gaming Mode (Suppress non-critical notifications)" IsChecked="{Binding GamingMode}" Margin="0,0,0,8"/>
+                        <CheckBox Content="File Explorer Context Menu Integration" IsChecked="{Binding ContextMenu}" Margin="0,0,0,8"/>
+                        <CheckBox Content="Battery Saver Mode (Throttle CPU during background scan)" IsChecked="{Binding BatterySaver}" Margin="0,0,0,8"/>
+                        <CheckBox Content="Enable CodeBERT AI Model for RAM Scanning" IsChecked="{Binding CodebertEnabled}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- MFA Enrollment & Management -->
+                <Border Background="{StaticResource CardBrush}" CornerRadius="10" Padding="16" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="Multi-Factor Authentication (MFA / TOTP)" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource PrimaryBrush}" Margin="0,0,0,8"/>
+                        <TextBlock Text="Enroll TOTP secret for authenticator apps (Google Authenticator / Authy) to secure admin logins." FontSize="11" Foreground="{StaticResource SubtextBrush}" Margin="0,0,0,12"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                            <Button Content="Enroll New MFA Secret" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" Command="{Binding EnrollMfaCommand}"/>
+                            <Button Content="Disable MFA" Style="{StaticResource DangerButton}" Command="{Binding DisableMfaCommand}"/>
+                        </StackPanel>
+                        <Grid Visibility="{Binding HasMfaSecret, Converter={StaticResource BoolToVis}}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0" Text="{Binding MfaSecret}" IsReadOnly="True" Margin="0,0,8,0" Height="28"/>
+                            <TextBox Grid.Column="1" Text="{Binding MfaConfirmCode, UpdateSourceTrigger=PropertyChanged}" ToolTip="Enter 6-digit TOTP Code" Margin="0,0,8,0" Height="28"/>
+                            <Button Grid.Column="2" Content="Confirm MFA" Command="{Binding ConfirmMfaCommand}" Height="28"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- License Activation -->
+                <Border Background="{StaticResource CardBrush}" CornerRadius="10" Padding="16" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="Product License &amp; Capacity" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource PrimaryBrush}" Margin="0,0,0,8"/>
+                        <TextBlock Text="{Binding License.CustomerName, StringFormat=Licensed to: {0}}" FontSize="12" Foreground="{StaticResource TextBrush}"/>
+                        <TextBlock Text="{Binding License.MaxEndpoints, StringFormat=Max Endpoints: {0}}" FontSize="11" Foreground="{StaticResource SubtextBrush}" Margin="0,2,0,10"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0" Text="{Binding LicenseKeyInput, UpdateSourceTrigger=PropertyChanged}" ToolTip="Enter Product License Key" Margin="0,0,8,0" Height="28"/>
+                            <Button Grid.Column="1" Content="Activate License" Command="{Binding UploadLicenseCommand}" Height="28"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <Button Content="Save Settings &amp; Reconnect" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left" Margin="0,0,0,16" Command="{Binding SaveSettingsCommand}"/>
+
+                <!-- Prometheus Metrics & Diag Logs -->
+                <TabControl Height="240">
+                    <TabItem Header="Local Diagnostic Logs">
+                        <Grid Margin="8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Button Grid.Row="0" Content="Refresh Logs" HorizontalAlignment="Left" Margin="0,0,0,6" Command="{Binding RefreshDiagLogsCommand}"/>
+                            <TextBox Grid.Row="1" Text="{Binding DiagLogs}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" FontFamily="Consolas" FontSize="11"/>
+                        </Grid>
+                    </TabItem>
+
+                    <TabItem Header="Prometheus Metrics (/api/v1/metrics)">
+                        <Grid Margin="8">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Button Grid.Row="0" Content="Fetch Metrics" HorizontalAlignment="Left" Margin="0,0,0,6" Command="{Binding RefreshMetricsCommand}"/>
+                            <TextBox Grid.Row="1" Text="{Binding MetricsOutput}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" FontFamily="Consolas" FontSize="11"/>
+                        </Grid>
+                    </TabItem>
+                </TabControl>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

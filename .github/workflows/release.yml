@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Release ${{ matrix.target }}
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        target: [x86_64-pc-windows-msvc]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Build backend
+        run: cargo build --release -p monolith-backend
+
+      - name: Build agent
+        run: cargo build --release -p monolith-agent
+
+      - name: Build scanner
+        run: |
+          mkdir -p build
+          go build -o build/scanner.exe ./cmd/scanner/
+        working-directory: scanner
+
+      - name: Build driver
+        run: msbuild driver/edr.vcxproj /p:Configuration=Release /p:Platform=x64
+
+      - name: Build GUI
+        run: |
+          pip install pyinstaller -r requirements.txt
+          pyinstaller --onefile --windowed --name "Monolith" app/main.py
+        working-directory: gui
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: monolith-${{ github.ref_name }}-${{ matrix.target }}
+          path: |
+            target/release/monolith-backend.exe
+            target/release/monolith-agent.exe
+            build/scanner.exe
+            gui/dist/Monolith.exe
+            driver/edr.inf
+            driver/x64/Release/edr.sys

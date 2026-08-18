@@ -1,0 +1,195 @@
+# https://taskfile.dev
+version: '3'
+
+vars:
+  RUST_BACKEND: backend
+  RUST_AGENT: agent
+  RUST_SHARED: shared
+  GO_SCANNER: scanner
+
+tasks:
+
+  # === BUILD ALL ===
+  build:all:
+    desc: Build all components
+    cmds:
+      - task: build:shared
+      - task: build:backend
+      - task: build:agent
+      - task: build:matcher
+      - task: build:scanner
+
+  build:shared:
+    desc: Build shared Rust crate
+    dir: shared
+    cmds:
+      - cargo build --release
+
+  build:backend:
+    desc: Build backend server
+    dir: backend
+    cmds:
+      - cargo build --release
+    deps: [build:shared]
+
+  build:agent:
+    desc: Build endpoint agent
+    dir: agent
+    cmds:
+      - cargo build --release
+    deps: [build:shared]
+
+  build:matcher:
+    desc: Build YARA matcher sidecar
+    dir: matcher
+    cmds:
+      - cargo build --release
+    deps: [build:shared]
+
+  build:scanner:
+    desc: Build Go scanner
+    dir: scanner
+    cmds:
+      - go build -o ../build/scanner.exe ./cmd/scanner/
+
+  # === LINT ===
+  lint:all:
+    desc: Lint all components
+    cmds:
+      - task: lint:rust
+      - task: lint:go
+      - task: lint:py
+
+  lint:rust:
+    desc: Run Rust linters (clippy + fmt)
+    cmds:
+      - cargo clippy --workspace -- -D warnings
+      - cargo fmt --all --check
+
+  lint:go:
+    desc: Run Go linters
+    dir: scanner
+    cmds:
+      - go vet ./...
+      - staticcheck ./...
+
+  lint:py:
+    desc: Run Python linters (deprecated, no GUI)
+    cmds:
+      - echo "Python GUI has been removed"
+
+  # === TEST ===
+  test:all:
+    desc: Run all tests
+    cmds:
+      - task: test:rust
+      - task: test:go
+      - task: test:py
+
+  test:rust:
+    desc: Run Rust tests
+    cmds:
+      - cargo test --workspace
+
+  test:go:
+    desc: Run Go tests
+    dir: scanner
+    cmds:
+      - go test ./... -v -count=1
+
+  test:py:
+    desc: Run Python tests (deprecated, no GUI)
+    cmds:
+      - echo "Python GUI has been removed"
+
+  test:integration:
+    desc: Run integration tests
+    dir: tests
+    cmds:
+      - cargo test --test integration -- --test-threads=1
+
+  test:api:
+    desc: Run API tests
+    cmds:
+      - cargo test --test api
+
+  test:bench:
+    desc: Run benchmarks
+    cmds:
+      - cargo bench
+
+  # === COVERAGE ===
+  coverage:
+    desc: Generate coverage report
+    cmds:
+      - cargo tarpaulin --workspace --out html
+
+  # === AUDIT ===
+  audit:
+    desc: Run security audit
+    cmds:
+      - cargo audit
+      - cargo deny check
+
+  # === DOCS ===
+  docs:
+    desc: Build documentation site
+    cmds:
+      - mdbook build docs
+
+  docs:serve:
+    desc: Serve documentation locally
+    cmds:
+      - mdbook serve docs --open
+
+  # === CLEAN ===
+  clean:
+    desc: Clean all build artifacts
+    cmds:
+      - cargo clean
+      - go clean -cache
+      - Remove-Item -Recurse -Force build/ -ErrorAction SilentlyContinue
+      - Remove-Item -Recurse -Force target/ -ErrorAction SilentlyContinue
+
+  # === SETUP ===
+  setup:
+    desc: Install all prerequisites
+    cmds:
+      - powershell -File ../scripts/setup.ps1
+
+  certs:
+    desc: Generate mTLS certificates
+    cmds:
+      - powershell -File ../scripts/gen-certs.ps1
+
+  # === DRIVER ===
+  build:driver:
+    desc: Build KMDF driver
+    dir: driver
+    cmds:
+      - msbuild edr.vcxproj /p:Configuration=Release /p:Platform=x64
+
+  # === DEMO ===
+  setup:demo:
+    desc: One-command demo setup — certs, data dir, seed IOCs
+    cmds:
+      - task: certs
+      - powershell -File demo/simulate-attack.ps1
+      - powershell -File demo/seed-data.ps1
+
+  run:all:
+    desc: Start backend, matcher, scanner, and agent
+    cmds:
+      - echo "Starting backend..."
+      - cmd: cargo run -p monolith-backend -- --config configs/backend.toml
+        background: true
+      - echo "Starting matcher..."
+      - cmd: cargo run -p monolith-matcher
+        background: true
+      - echo "Starting scanner..."
+      - cmd: cd scanner && go run ./cmd/scanner/
+        background: true
+      - echo "Starting agent..."
+      - cmd: cargo run -p monolith-agent
+        background: true
+      - echo "Services running in background"

@@ -1,0 +1,110 @@
+syntax = "proto3";
+
+package edr.proto.v1;
+
+import "google/protobuf/timestamp.proto";
+import "edr/proto/v1/common.proto";
+
+option go_package = "github.com/edr/scanner/internal/grpc/pb";
+
+message Endpoint {
+  UUID id = 1;
+  string hostname = 2;
+  string ip_address = 3;
+  string os_version = 4;
+  string os_architecture = 5;
+  string agent_version = 6;
+  string driver_version = 7;
+  string scanner_version = 8;
+  EndpointStatus status = 9;
+  google.protobuf.Timestamp first_seen = 10;
+  google.protobuf.Timestamp last_seen = 11;
+  string policy_id = 12;
+  bool isolated = 13;
+  repeated MetadataEntry tags = 14;
+  map<string, string> custom_fields = 15;
+}
+
+message HeartbeatRequest {
+  UUID endpoint_id = 1;
+  google.protobuf.Timestamp timestamp = 2;
+  EndpointStatus status = 3;
+  double cpu_usage = 4;
+  double memory_usage = 5;
+  uint64 disk_free_bytes = 6;
+  uint32 event_queue_depth = 7;
+  bool driver_loaded = 8;
+  bool scanner_connected = 9;
+  uint32 driver_events_collected = 10;
+  uint32 driver_events_dropped = 11;
+  string agent_version = 12;
+  string driver_version = 13;
+  string scanner_version = 14;
+}
+
+message HeartbeatResponse {
+  bool ack = 1;
+  google.protobuf.Timestamp server_time = 2;
+  string server_version = 3;
+  bool policy_update_available = 4;
+  bool ioc_update_available = 5;
+  bool action_pending = 6;
+  repeated string pending_actions = 7;
+}
+
+message RegisterRequest {
+  string hostname = 1;
+  string os_version = 2;
+  string os_architecture = 3;
+  string agent_version = 4;
+  string certificate_thumbprint = 5;
+}
+
+message RegisterResponse {
+  UUID endpoint_id = 1;
+  string api_token = 2;
+  google.protobuf.Timestamp registered_at = 3;
+}
+
+message PolicyRequest {
+  UUID endpoint_id = 1;
+  string current_policy_version = 2;
+}
+
+message PolicyResponse {
+  string policy_id = 1;
+  string policy_version = 2;
+  bytes policy_content = 3; // YAML-serialized policy
+  google.protobuf.Timestamp updated_at = 4;
+}
+
+message ActionRequest {
+  UUID endpoint_id = 1;
+  string last_action_id = 2;
+}
+
+message ResponseAction {
+  string id = 1;
+  ResponseActionType type = 2;
+  bytes parameters = 3; // JSON-serialized parameters
+  google.protobuf.Timestamp issued_at = 4;
+  string issued_by = 5;
+  string reason = 6;
+}
+
+message ActionStatus {
+  string action_id = 1;
+  UUID endpoint_id = 2;
+  ResponseActionType type = 3;
+  enum ActionState {
+    ACTION_PENDING = 0;
+    ACTION_IN_PROGRESS = 1;
+    ACTION_COMPLETED = 2;
+    ACTION_FAILED = 3;
+    ACTION_REJECTED = 4;
+  }
+  ActionState state = 4;
+  string result_message = 5;
+  google.protobuf.Timestamp started_at = 6;
+  google.protobuf.Timestamp completed_at = 7;
+}

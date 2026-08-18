@@ -1,0 +1,232 @@
+syntax = "proto3";
+
+package edr.proto.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/edr/scanner/internal/grpc/pb";
+
+// Universally unique identifier
+message UUID {
+  bytes value = 1; // 16 bytes, big-endian
+}
+
+// Severity levels for alerts and events
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;
+  SEVERITY_INFO = 1;
+  SEVERITY_LOW = 2;
+  SEVERITY_MEDIUM = 3;
+  SEVERITY_HIGH = 4;
+  SEVERITY_CRITICAL = 5;
+}
+
+// Confidence levels for IOCs and rules
+enum Confidence {
+  CONFIDENCE_UNSPECIFIED = 0;
+  CONFIDENCE_LOW = 1;
+  CONFIDENCE_MEDIUM = 2;
+  CONFIDENCE_HIGH = 3;
+  CONFIDENCE_VERIFIED = 4;
+}
+
+// Status of an endpoint
+enum EndpointStatus {
+  ENDPOINT_STATUS_UNSPECIFIED = 0;
+  ENDPOINT_STATUS_ONLINE = 1;
+  ENDPOINT_STATUS_OFFLINE = 2;
+  ENDPOINT_STATUS_ISOLATED = 3;
+  ENDPOINT_STATUS_DECOMMISSIONED = 4;
+}
+
+// Status of an alert
+enum AlertStatus {
+  ALERT_STATUS_UNSPECIFIED = 0;
+  ALERT_STATUS_NEW = 1;
+  ALERT_STATUS_ACKNOWLEDGED = 2;
+  ALERT_STATUS_INVESTIGATING = 3;
+  ALERT_STATUS_RESOLVED = 4;
+  ALERT_STATUS_DISMISSED = 5;
+}
+
+// Status of a scan
+enum ScanStatus {
+  SCAN_STATUS_UNSPECIFIED = 0;
+  SCAN_STATUS_PENDING = 1;
+  SCAN_STATUS_RUNNING = 2;
+  SCAN_STATUS_COMPLETED = 3;
+  SCAN_STATUS_FAILED = 4;
+  SCAN_STATUS_CANCELLED = 5;
+}
+
+// Operation type for audit logging
+enum OperationType {
+  OPERATION_TYPE_UNSPECIFIED = 0;
+  OPERATION_TYPE_CREATE = 1;
+  OPERATION_TYPE_READ = 2;
+  OPERATION_TYPE_UPDATE = 3;
+  OPERATION_TYPE_DELETE = 4;
+  OPERATION_TYPE_LOGIN = 5;
+  OPERATION_TYPE_LOGOUT = 6;
+  OPERATION_TYPE_RESPONSE = 7;
+  OPERATION_TYPE_CONFIG_CHANGE = 8;
+}
+
+// Scan type
+enum ScanType {
+  SCAN_TYPE_UNSPECIFIED = 0;
+  SCAN_TYPE_QUICK = 1;
+  SCAN_TYPE_FULL = 2;
+  SCAN_TYPE_INCREMENTAL = 3;
+  SCAN_TYPE_CUSTOM = 4;
+  SCAN_TYPE_SCHEDULED = 5;
+}
+
+// IOC type
+enum IOCTYPE {
+  IOC_TYPE_UNSPECIFIED = 0;
+  IOC_TYPE_SHA256 = 1;
+  IOC_TYPE_SHA1 = 2;
+  IOC_TYPE_MD5 = 3;
+  IOC_TYPE_DOMAIN = 4;
+  IOC_TYPE_URL = 5;
+  IOC_TYPE_IP = 6;
+  IOC_TYPE_CERTIFICATE = 7;
+  IOC_TYPE_REGISTRY_PATH = 8;
+  IOC_TYPE_FILE_PATH = 9;
+  IOC_TYPE_YARA = 10;
+  IOC_TYPE_SIGMA = 11;
+}
+
+// Telemetry event types
+enum EventType {
+  EVENT_TYPE_UNSPECIFIED = 0;
+  EVENT_TYPE_PROCESS_CREATE = 1;
+  EVENT_TYPE_PROCESS_EXIT = 2;
+  EVENT_TYPE_THREAD_CREATE = 3;
+  EVENT_TYPE_THREAD_EXIT = 4;
+  EVENT_TYPE_MODULE_LOAD = 5;
+  EVENT_TYPE_REGISTRY_CHANGE = 6;
+  EVENT_TYPE_FILE_CREATE = 7;
+  EVENT_TYPE_FILE_DELETE = 8;
+  EVENT_TYPE_FILE_MODIFY = 9;
+  EVENT_TYPE_FILE_RENAME = 10;
+  EVENT_TYPE_NETWORK_CONNECT = 11;
+  EVENT_TYPE_DNS_QUERY = 12;
+  EVENT_TYPE_DRIVER_LOAD = 13;
+  EVENT_TYPE_SERVICE_CREATE = 14;
+  EVENT_TYPE_SCHEDULED_TASK = 15;
+  EVENT_TYPE_USB_INSERT = 16;
+  EVENT_TYPE_USER_LOGON = 17;
+  EVENT_TYPE_USER_LOGOFF = 18;
+  EVENT_TYPE_POWERSHELL_COMMAND = 19;
+  EVENT_TYPE_WMI_EVENT = 20;
+  EVENT_TYPE_DRIVER_EVENT = 21;
+  EVENT_TYPE_SCANNER_RESULT = 22;
+  EVENT_TYPE_MEMORY_SCAN = 23;
+  EVENT_TYPE_REGISTRY_TAMPER = 24;
+  EVENT_TYPE_MEMORY_SUSPICIOUS = 25;
+}
+
+// Response action types
+enum ResponseActionType {
+  RESPONSE_ACTION_UNSPECIFIED = 0;
+  RESPONSE_ACTION_TERMINATE_PROCESS = 1;
+  RESPONSE_ACTION_QUARANTINE_FILE = 2;
+  RESPONSE_ACTION_RESTORE_QUARANTINE = 3;
+  RESPONSE_ACTION_DELETE_QUARANTINE = 4;
+  RESPONSE_ACTION_ISOLATE_ENDPOINT = 5;
+  RESPONSE_ACTION_RELEASE_ISOLATION = 6;
+  RESPONSE_ACTION_RESTART_AGENT = 7;
+  RESPONSE_ACTION_TRIGGER_QUICK_SCAN = 8;
+  RESPONSE_ACTION_TRIGGER_FULL_SCAN = 9;
+  RESPONSE_ACTION_COLLECT_DIAGNOSTICS = 10;
+  RESPONSE_ACTION_UPDATE_POLICY = 11;
+  RESPONSE_ACTION_SCAN_PROCESS_MEMORY = 12;
+  RESPONSE_ACTION_SHRED_FILE = 13;
+  RESPONSE_ACTION_VAULT_ADD = 14;
+  RESPONSE_ACTION_VAULT_EXTRACT = 15;
+  RESPONSE_ACTION_VAULT_REMOVE = 16;
+  RESPONSE_ACTION_VAULT_LIST = 17;
+  RESPONSE_ACTION_LOCKDOWN_ENTER = 18;
+  RESPONSE_ACTION_LOCKDOWN_EXIT = 19;
+  RESPONSE_ACTION_BACKUP_FILE = 20;
+  RESPONSE_ACTION_RESTORE_FILE = 21;
+  RESPONSE_ACTION_CREATE_RESTORE_POINT = 22;
+  RESPONSE_ACTION_SYSTEM_RESTORE = 23;
+  RESPONSE_ACTION_REMOTE_SHELL = 24;
+}
+
+// PC performance state detected by the agent
+enum PcProfile {
+  PC_PROFILE_UNSPECIFIED = 0;
+  PC_PROFILE_PERFORMANCE = 1;
+  PC_PROFILE_BALANCED = 2;
+  PC_PROFILE_GAMING = 3;
+  PC_PROFILE_PRESENTATION = 4;
+  PC_PROFILE_BATTERY = 5;
+  PC_PROFILE_IDLE = 6;
+}
+
+// EDR operational profile
+enum EdrProfile {
+  EDR_PROFILE_UNSPECIFIED = 0;
+  EDR_PROFILE_MAX_PROTECTION = 1;
+  EDR_PROFILE_BALANCED = 2;
+  EDR_PROFILE_MINIMAL_IMPACT = 3;
+  EDR_PROFILE_STEALTH = 4;
+}
+
+// Key-value pair for metadata
+message MetadataEntry {
+  string key = 1;
+  string value = 2;
+}
+
+// Hash set for file identification
+message FileHashes {
+  string sha256 = 1;
+  string sha1 = 2;
+  string md5 = 3;
+}
+
+// Digital signature information
+message SignatureInfo {
+  bool signed = 1;
+  bool verified = 2;
+  string signer = 3;
+  string issuer = 4;
+  string thumbprint = 5;
+  google.protobuf.Timestamp timestamp = 6;
+  repeated string certificate_chain = 7;
+}
+
+// File metadata
+message FileMetadata {
+  string path = 1;
+  string name = 2;
+  string extension = 3;
+  uint64 size = 4;
+  FileHashes hashes = 5;
+  SignatureInfo signature = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp modified_at = 8;
+  uint32 entropy = 9;
+  bool is_pe = 10;
+}
+
+// Process information
+message ProcessInfo {
+  uint32 pid = 1;
+  uint32 parent_pid = 2;
+  string name = 3;
+  string path = 4;
+  string command_line = 5;
+  string session_id = 6;
+  string integrity_level = 7;
+  string user_sid = 8;
+  string user_name = 9;
+  FileHashes hashes = 10;
+  SignatureInfo signature = 11;
+  google.protobuf.Timestamp start_time = 12;
+}

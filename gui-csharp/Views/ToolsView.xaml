@@ -1,0 +1,58 @@
+<UserControl x:Class="MonolithGui.Views.ToolsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="600" d:DesignWidth="800">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="200"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="Administrative Tools &amp; Allowlist Management" FontSize="20" FontWeight="Bold" Margin="0,0,0,16"/>
+
+        <Grid Grid.Row="1" Margin="0,0,0,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Background="{StaticResource CardBrush}" CornerRadius="10" Padding="16" Margin="0,0,10,0">
+                <StackPanel>
+                    <TextBlock Text="Executive Security Reports" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource PrimaryBrush}"/>
+                    <TextBlock Text="Generate a detailed PDF security summary report with alert breakdowns and endpoint status." FontSize="11" Foreground="{StaticResource SubtextBrush}" TextWrapping="Wrap" Margin="0,6,0,16" Height="36"/>
+                    <Button Content="Generate Executive Summary Report" Style="{StaticResource PrimaryButton}" Command="{Binding GenerateReportCommand}"/>
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Column="1" Background="{StaticResource CardBrush}" CornerRadius="10" Padding="16">
+                <StackPanel>
+                    <TextBlock Text="Add Exclusions to Allowlist" FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource PrimaryBrush}"/>
+                    <TextBlock Text="Exclude a SHA-256 hash or file path from real-time detection." FontSize="11" Foreground="{StaticResource SubtextBrush}" Margin="0,6,0,8"/>
+                    <TextBox Text="{Binding AllowlistInput, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10" ToolTip="Enter SHA-256 or file path" Height="28"/>
+                    <Button Content="Add to Allowlist" Command="{Binding AddAllowlistCommand}"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="2" Background="{StaticResource CardBrush}" CornerRadius="10" Padding="16">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Text="Allowlisted Objects" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                <DataGrid Grid.Row="1" ItemsSource="{Binding AllowlistItems}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Target" Binding="{Binding Target}" Width="*"/>
+                        <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="120"/>
+                        <DataGridTextColumn Header="Date Added" Binding="{Binding CreatedAt}" Width="160"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

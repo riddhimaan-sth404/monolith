@@ -1,0 +1,48 @@
+;
+; EDR Kernel Driver Installation INF
+;
+
+[Version]
+Signature="$WINDOWS NT$"
+Class=System
+ClassGuid={4d36e97d-e325-11ce-bfc1-08002be10318}
+Provider=%EDRProvider%
+DriverVer = 07/22/2026,16.6.35.224
+CatalogFile=edr.cat
+
+[DestinationDirs]
+DefaultDestDir = 12
+
+[DefaultInstall]
+OptionDesc = %EDRDescription%
+CopyFiles = @edr.sys
+
+[DefaultInstall.Services]
+AddService = EDRDriver, 0x00000002, DriverService
+
+[DefaultUninstall]
+DelFiles = @edr.sys
+
+[DefaultUninstall.Services]
+DelService = EDRDriver, 0x200
+
+[DriverService]
+DisplayName    = %EDRServiceName%
+ServiceType    = 1
+StartType      = 1
+ErrorControl   = 1
+ServiceBinary  = %12%\edr.sys
+LoadOrderGroup = Extended Base
+
+[SourceDisksNames]
+1 = %DiskName%,,,
+
+[SourceDisksFiles]
+edr.sys = 1
+
+[Strings]
+EDRProvider    = "EDR Platform"
+EDRDescription = "EDR Kernel Driver for Endpoint Telemetry"
+EDRServiceName = "EDR Kernel Driver"
+DiskName       = "EDR Installation Disk"
+

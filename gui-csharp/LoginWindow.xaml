@@ -1,0 +1,41 @@
+<Window x:Class="MonolithGui.LoginWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Monolith EDR - Authentication"
+        Height="460" Width="440"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="{StaticResource WindowBackgroundBrush}">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Shield & Brand Header -->
+        <StackPanel Grid.Row="0" HorizontalAlignment="Center" Margin="0,10,0,20">
+            <Border Width="56" Height="56" CornerRadius="28" Background="#203B82F6" BorderBrush="{StaticResource GlassHighlightBorderBrush}" BorderThickness="1" HorizontalAlignment="Center" Margin="0,0,0,10">
+                <Path Data="M12,1L3,5v6c0,5.55,3.84,10.74,9,12c5.16-1.26,9-6.45,9-12V5L12,1z" Fill="{StaticResource PrimaryBrush}" Width="24" Height="24" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <TextBlock Text="MONOLITH EDR" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextBrush}" HorizontalAlignment="Center"/>
+            <TextBlock Text="Sign in to management console" FontSize="12" Foreground="{StaticResource SubtextBrush}" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+        </StackPanel>
+
+        <!-- Form Inputs -->
+        <StackPanel Grid.Row="1">
+            <TextBlock Text="Username / Admin Account:" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource SubtextBrush}" Margin="0,0,0,4"/>
+            <TextBox Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}" Height="38" Margin="0,0,0,14"/>
+
+            <TextBlock Text="Password:" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource SubtextBrush}" Margin="0,0,0,4"/>
+            <PasswordBox x:Name="TxtPassword" Height="38" Margin="0,0,0,14" PasswordChanged="PasswordBox_PasswordChanged"/>
+        </StackPanel>
+
+        <!-- Error Feedback -->
+        <TextBlock Grid.Row="2" Text="{Binding ErrorMessage}" Foreground="{StaticResource DangerBrush}" FontSize="12" TextWrapping="Wrap" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+        <!-- Action Button -->
+        <Button Grid.Row="3" Content="Authenticate &amp; Open Console" Style="{StaticResource PrimaryButton}" Height="40" Command="{Binding LoginCommand}" HorizontalAlignment="Stretch"/>
+    </Grid>
+</Window>

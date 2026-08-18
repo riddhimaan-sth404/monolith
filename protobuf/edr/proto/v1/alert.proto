@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package edr.proto.v1;
+
+import "google/protobuf/timestamp.proto";
+import "edr/proto/v1/common.proto";
+import "edr/proto/v1/endpoint.proto";
+
+option go_package = "github.com/edr/scanner/internal/grpc/pb";
+
+message Alert {
+  UUID id = 1;
+  UUID endpoint_id = 2;
+  UUID event_id = 3;
+  UUID rule_id = 4;
+  Severity severity = 5;
+  Confidence confidence = 6;
+  AlertStatus status = 7;
+  string title = 8;
+  string description = 9;
+  string mitre_technique_id = 10;
+  string mitre_tactic = 11;
+  repeated string tags = 12;
+  double score = 13;
+  bool suppressed = 14;
+
+  // Event context
+  ProcessInfo process = 20;
+  FileMetadata file = 21;
+  string registry_path = 22;
+  string network_address = 23;
+  string command_line = 24;
+
+  // Response tracking
+  UUID assigned_to = 30;
+  string resolution_notes = 31;
+  google.protobuf.Timestamp acknowledged_at = 32;
+  google.protobuf.Timestamp resolved_at = 33;
+
+  repeated ResponseAction triggered_actions = 40;
+
+  google.protobuf.Timestamp created_at = 50;
+  google.protobuf.Timestamp updated_at = 51;
+}
+
+message AlertSummary {
+  uint32 total = 1;
+  uint32 by_severity_critical = 2;
+  uint32 by_severity_high = 3;
+  uint32 by_severity_medium = 4;
+  uint32 by_severity_low = 5;
+  uint32 new_alerts = 6;
+  uint32 acknowledged = 7;
+  uint32 investigating = 8;
+  uint32 resolved = 9;
+  uint32 suppressed = 10;
+}
+
+message AlertFilter {
+  repeated Severity severities = 1;
+  repeated AlertStatus statuses = 2;
+  repeated string tags = 3;
+  string mitre_technique_id = 4;
+  string search = 5;
+  google.protobuf.Timestamp from = 6;
+  google.protobuf.Timestamp to = 7;
+  string endpoint_id = 8;
+  string assigned_to = 9;
+  uint32 page = 10;
+  uint32 page_size = 11;
+}

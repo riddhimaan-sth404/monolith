@@ -1,0 +1,18 @@
+[package]
+name = "monolith-matcher"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+yara-x = { version = "1.19", features = ["default-modules"] }
+tokio = { workspace = true, features = ["full"] }
+axum = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["json", "fmt", "env-filter"] }
+anyhow = { workspace = true }
+walkdir = { workspace = true }
+clap = { version = "4", features = ["derive"] }
+base64 = { workspace = true }

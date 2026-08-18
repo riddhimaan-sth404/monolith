@@ -1,0 +1,135 @@
+# Auto-Response Rules Configuration
+# Each rule defines a condition, action, and cooldown period.
+# Rules are evaluated in order; first match wins per alert.
+
+[[rules]]
+id = "auto_kill_known_bad_hash"
+name = "Kill and quarantine known-bad hash"
+enabled = true
+action = "kill_and_quarantine"
+cooldown_secs = 30
+condition = { type = "composite", op = "and", conditions = [
+  { type = "source", sources = ["ioc"] },
+  { type = "min_severity", value = 5 },
+] }
+
+[[rules]]
+id = "auto_isolate_credential_dumping"
+name = "Isolate endpoint on credential dumping"
+enabled = true
+action = "isolate_endpoint"
+cooldown_secs = 300
+condition = { type = "correlation", correlation_types = ["credential_dumping"] }
+
+[[rules]]
+id = "auto_isolate_ransomware"
+name = "Isolate endpoint on ransomware pattern"
+enabled = true
+action = "isolate_endpoint"
+cooldown_secs = 120
+condition = { type = "correlation", correlation_types = ["ransomware"] }
+
+[[rules]]
+id = "auto_kill_lolbin_chain"
+name = "Terminate process on suspicious LOLBin chain"
+enabled = true
+action = "terminate_process"
+cooldown_secs = 60
+condition = { type = "composite", op = "and", conditions = [
+  { type = "correlation", correlation_types = ["lolbin"] },
+  { type = "min_severity", value = 4 },
+] }
+
+[[rules]]
+id = "auto_quarantine_yara_high"
+name = "Quarantine file on high-severity YARA match"
+enabled = true
+action = "quarantine_file"
+cooldown_secs = 60
+condition = { type = "composite", op = "and", conditions = [
+  { type = "source", sources = ["yara"] },
+  { type = "min_severity", value = 4 },
+] }
+
+[[rules]]
+id = "auto_quarantine_ember_malicious"
+name = "Quarantine file when EMBER score > 0.8"
+enabled = true
+action = "quarantine_file"
+cooldown_secs = 60
+condition = { type = "composite", op = "and", conditions = [
+  { type = "source", sources = ["ember"] },
+  { type = "min_score", value = 8.0 },
+] }
+
+[[rules]]
+id = "auto_sandbox_ember_gray"
+name = "Run sandbox on EMBER gray zone (0.3-0.8)"
+enabled = true
+action = "run_sandbox"
+cooldown_secs = 300
+condition = { type = "composite", op = "and", conditions = [
+  { type = "source", sources = ["ember"] },
+  { type = "min_score", value = 3.0 },
+  { type = "max_score", value = 7.999 },
+] }
+
+[[rules]]
+id = "auto_quarantine_persistence"
+name = "Quarantine file on suspicious persistence"
+enabled = true
+action = "quarantine_file"
+cooldown_secs = 120
+condition = { type = "composite", op = "and", conditions = [
+  { type = "correlation", correlation_types = ["persistence"] },
+  { type = "min_severity", value = 3 },
+] }
+
+[[rules]]
+id = "auto_isolate_log_clearing"
+name = "Isolate endpoint on log clearing"
+enabled = true
+action = "isolate_endpoint"
+cooldown_secs = 300
+condition = { type = "correlation", correlation_types = ["indicator_removal"] }
+
+[[rules]]
+id = "auto_kill_masquerading"
+name = "Terminate process on masquerading"
+enabled = true
+action = "terminate_process"
+cooldown_secs = 120
+condition = { type = "composite", op = "and", conditions = [
+  { type = "correlation", correlation_types = ["masquerading"] },
+  { type = "min_severity", value = 4 },
+] }
+
+[[rules]]
+id = "auto_isolate_exfiltration"
+name = "Isolate endpoint on data exfiltration"
+enabled = true
+action = "isolate_endpoint"
+cooldown_secs = 300
+condition = { type = "correlation", correlation_types = ["exfiltration"] }
+
+[[rules]]
+id = "auto_quarantine_pdf_malicious"
+name = "Quarantine malicious PDF file"
+enabled = true
+action = "quarantine_file"
+cooldown_secs = 60
+condition = { type = "composite", op = "and", conditions = [
+  { type = "source", sources = ["ember"] },
+  { type = "min_score", value = 8.0 },
+] }
+
+[[rules]]
+id = "auto_quarantine_dotnet_malicious"
+name = "Quarantine malicious .NET assembly"
+enabled = true
+action = "quarantine_file"
+cooldown_secs = 60
+condition = { type = "composite", op = "and", conditions = [
+  { type = "source", sources = ["ember"] },
+  { type = "min_score", value = 8.0 },
+] }

@@ -1,0 +1,61 @@
+[agent]
+endpoint_id = "auto"
+log_level = "INFO"
+
+[server]
+host = "127.0.0.1"
+rest_port = 8443
+grpc_port = 9443
+
+[tls]
+cert_path = "certs/agent.pem"
+key_path = "certs/agent.key"
+ca_cert_path = "certs/ca.pem"
+
+[database]
+kind = "sqlite"
+path = "${ProgramData}\\EDR\\agent.db"
+max_connections = 4
+
+[heartbeat]
+interval_secs = 30
+retry_interval_secs = 5
+
+[offline_queue]
+max_size = 10000
+flush_batch_size = 100
+
+[driver]
+name = "\\\\.\\EDR"
+buffer_size = 65536
+poll_interval_ms = 100
+
+[logging]
+level = "info"
+format = "json"
+directory = "${ProgramData}\\EDR\\logs"
+rotation = "daily"
+compression = true
+max_files = 14
+
+[scanner]
+address = "127.0.0.1:50072"
+timeout_secs = 30
+api_url = "http://127.0.0.1:50053"
+event_listener_port = 8090
+
+[polling]
+policy_interval_secs = 60
+ioc_interval_secs = 300
+
+[service]
+display_name = "Monolith Endpoint Agent"
+description = "Endpoint Detection and Response Agent"
+start_type = "auto"
+dependencies = ["EDRDriver"]
+
+[restore]
+enabled = false
+auto_install_snapshots = true
+max_snapshots = 14
+volume = "C:"

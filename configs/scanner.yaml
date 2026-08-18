@@ -1,0 +1,39 @@
+scanner:
+  log_level: "INFO"
+  concurrency: 4
+  throttle_iops: 500
+  ember_model_path: "configs/ember_model.json"
+  models_dir: "ember"
+
+
+grpc:
+  listen: "127.0.0.1:50072"
+
+yara:
+  rules_path: "scanner/yara/rules"
+  compile_cache: "scanner/yara/rules"
+
+quarantine:
+  path: "${ProgramData}\\EDR\\Quarantine"
+  encryption_key: ""
+
+scan:
+  quick_paths:
+    - "{Desktop}"
+    - "{Downloads}"
+    - "{Documents}"
+    - "{LocalAppData}\\Temp"
+    - "{StartMenu}"
+  full_scan_drives:
+    - "C:\\"
+  excluded_paths:
+    - "C:\\Windows\\WinSxS"
+    - "C:\\$Recycle.Bin"
+    - "C:\\System Volume Information"
+  max_file_size_mb: 50
+  archive_max_depth: 5
+
+backend:
+  url: "https://127.0.0.1:8443"
+  insecure_skip_verify: false
+  ca_cert_path: "certs/ca.pem"

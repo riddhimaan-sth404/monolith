@@ -1,0 +1,105 @@
+syntax = "proto3";
+
+package edr.proto.v1;
+
+import "google/protobuf/timestamp.proto";
+import "edr/proto/v1/common.proto";
+
+option go_package = "github.com/edr/scanner/internal/grpc/pb";
+
+message ScanRequest {
+  string id = 1;
+  ScanType scan_type = 2;
+  repeated string paths = 3; // For custom scans
+  bool yara_scan = 4;
+  bool hash_check = 5;
+  bool signature_check = 6;
+  bool quarantine_malicious = 7;
+  uint32 priority = 8; // 0=low, 1=normal, 2=high
+}
+
+message ScanStatusMessage {
+  string scan_id = 1;
+  ScanStatus status = 2;
+  ScanType scan_type = 3;
+  google.protobuf.Timestamp started_at = 4;
+  google.protobuf.Timestamp completed_at = 5;
+  uint64 total_files = 6;
+  uint64 scanned_files = 7;
+  uint64 infected_files = 8;
+  uint64 quarantined_files = 9;
+  uint64 errors = 10;
+  double progress_percent = 11;
+  string current_path = 12;
+  double scan_speed_files_per_sec = 13;
+}
+
+message ScanResult {
+  string scan_id = 1;
+  string file_path = 2;
+  string file_name = 3;
+  uint64 file_size = 4;
+  FileHashes hashes = 5;
+  double entropy = 6;
+
+  bool is_pe = 10;
+  PeInfo pe_info = 11;
+  SignatureInfo signature = 12;
+
+  repeated string matched_yara_rules = 20;
+  repeated string matched_iocs = 21;
+  double detection_score = 22;
+  double heuristic_score = 24;
+  double ember_score = 25;
+  double fusion_score = 26;
+  bool needs_sandbox = 27;
+  repeated string heuristic_rules = 28;
+  string verdict = 23; // "clean", "suspicious", "malicious"
+
+  bool quarantined = 30;
+  string quarantine_path = 31;
+
+  google.protobuf.Timestamp scanned_at = 40;
+  uint64 scan_duration_ms = 41;
+}
+
+message PeInfo {
+  string subsystem = 1;
+  string machine_type = 2;
+  uint32 number_of_sections = 3;
+  repeated string section_names = 4;
+  repeated string imported_dlls = 5;
+  repeated string imported_functions = 6;
+  repeated string exported_functions = 7;
+  repeated string resources = 8;
+  google.protobuf.Timestamp compile_timestamp = 9;
+  string entry_point = 10;
+  uint64 image_base = 11;
+  uint32 size_of_code = 12;
+  bool is_driver = 13;
+  bool is_dll = 14;
+  bool has_authenticode = 15;
+  bool packed = 16;
+  string packer_name = 17;
+}
+
+message StopRequest {
+  string scan_id = 1;
+}
+
+message StatusRequest {
+  string scan_id = 1;
+}
+
+message ScanSummary {
+  string scan_id = 1;
+  ScanStatus final_status = 2;
+  uint64 total_files = 3;
+  uint64 clean_files = 4;
+  uint64 suspicious_files = 5;
+  uint64 malicious_files = 6;
+  uint64 quarantined_files = 7;
+  uint64 errors = 8;
+  double total_duration_secs = 9;
+  repeated ScanResult top_threats = 10;
+}

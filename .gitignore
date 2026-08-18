@@ -1,0 +1,90 @@
+# Rust
+target/
+Cargo.lock
+
+# Go
+scanner/vendor/
+scanner/scanner.exe
+
+# C# / Visual Studio / MSBuild
+bin/
+obj/
+[Bb]in/
+[Oo]bj/
+.vs/
+.vscode/
+.idea/
+*.sln.docstates
+*.user
+*.suo
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.gui/env/
+.gui/venv/
+
+# Build artifacts & Drivers
+*.exe
+*.dll
+*.sys
+*.pdb
+*.msi
+*.cab
+*.o
+*.obj
+*.lib
+*.exp
+build/
+release/
+dist/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Certificates (generated)
+certs/*.pem
+certs/*.key
+certs/*.crt
+certs/*.p12
+
+# Config overrides
+configs/*.local.toml
+
+# Secret Keys
+*.hex
+vendor-key.hex
+
+# Logs & Output Dumps
+*.log
+logs/
+*_out.txt
+*_output.txt
+*_output.json
+extracted_reports.txt
+reports_utf8.txt
+
+# Database & Runtime Data
+*.db
+*.db-wal
+*.db-shm
+data/
+${ProgramData}/
+scanner/${ProgramData}/
+
+# YARA compiled cache
+yara/cache/
+
+# NuGet packages
+packages/
+
+# Cache directories
+.ruff_cache/
+.pytest_cache/
+.tools/
+vendor-keygen/target/
+
+

@@ -1,0 +1,98 @@
+<UserControl x:Class="MonolithGui.Views.AlertsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="600" d:DesignWidth="800">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Grid Grid.Row="0" Margin="0,0,0,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="100"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="180"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Column="0" Text="Threat Alerts &amp; Security Logs" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+
+            <TextBlock Grid.Column="1" Text="Severity:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource MutedBrush}"/>
+            <ComboBox Grid.Column="2" SelectedValue="{Binding SeverityFilter, UpdateSourceTrigger=PropertyChanged}" SelectedValuePath="Content" Height="28" Margin="0,0,12,0" VerticalAlignment="Center">
+                <ComboBoxItem Content="All"/>
+                <ComboBoxItem Content="Critical"/>
+                <ComboBoxItem Content="High"/>
+                <ComboBoxItem Content="Medium"/>
+                <ComboBoxItem Content="Low"/>
+            </ComboBox>
+
+            <TextBlock Grid.Column="3" Text="Search:" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{StaticResource MutedBrush}"/>
+            <TextBox Grid.Column="4" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Height="28"/>
+            <Button Grid.Column="5" Content="Refresh" Command="{Binding RefreshCommand}" Margin="12,0,0,0" Height="28" Width="75" VerticalAlignment="Center"/>
+        </Grid>
+
+        <!-- Tabbed Alert Views -->
+        <TabControl Grid.Row="1">
+            <TabItem Header="Security Rule Alerts">
+                <Grid Margin="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <DataGrid Grid.Row="0" ItemsSource="{Binding SecurityAlerts}" SelectedItem="{Binding SelectedAlert}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Severity" Binding="{Binding Severity}" Width="90"/>
+                            <DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="2*"/>
+                            <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="3*"/>
+                            <DataGridTextColumn Header="Rule ID" Binding="{Binding RuleId}" Width="120"/>
+                            <DataGridTextColumn Header="Hits" Binding="{Binding HitCount}" Width="60"/>
+                            <DataGridTextColumn Header="Timestamp" Binding="{Binding CreatedAt}" Width="160"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+                        <Button Content="Suppress Alert" Margin="0,0,8,0" Command="{Binding SuppressAlertCommand}" IsEnabled="{Binding IsAlertSelected}"/>
+                        <Button Content="Unsuppress Alert" Command="{Binding UnsuppressAlertCommand}" IsEnabled="{Binding IsAlertSelected}"/>
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Process Memory Alerts">
+                <Grid Margin="12">
+                    <DataGrid ItemsSource="{Binding MemoryAlerts}" SelectedItem="{Binding SelectedMemoryAlert}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Process" Binding="{Binding ProcessName}" Width="140"/>
+                            <DataGridTextColumn Header="PID" Binding="{Binding ProcessId}" Width="70"/>
+                            <DataGridTextColumn Header="Base Address" Binding="{Binding RegionBase}" Width="120"/>
+                            <DataGridTextColumn Header="Verdict" Binding="{Binding Verdict}" Width="100"/>
+                            <DataGridTextColumn Header="YARA Matches" Binding="{Binding YaraMatches}" Width="140"/>
+                            <DataGridTextColumn Header="CodeBERT Score" Binding="{Binding CodebertScore}" Width="110"/>
+                            <DataGridTextColumn Header="Timestamp" Binding="{Binding CreatedAt}" Width="160"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Registry Tamper Logs">
+                <Grid Margin="12">
+                    <DataGrid ItemsSource="{Binding RegistryTamperAlerts}" SelectedItem="{Binding SelectedRegistryAlert}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Target Registry Key" Binding="{Binding KeyPath}" Width="3*"/>
+                            <DataGridTextColumn Header="Operation" Binding="{Binding Operation}" Width="120"/>
+                            <DataGridTextColumn Header="PID" Binding="{Binding OffendingPid}" Width="70"/>
+                            <DataGridTextColumn Header="Offending Process" Binding="{Binding OffendingProcess}" Width="160"/>
+                            <DataGridTextColumn Header="Blocked" Binding="{Binding Blocked, Converter={StaticResource BoolToStatus}}" Width="80"/>
+                            <DataGridTextColumn Header="Timestamp" Binding="{Binding CreatedAt}" Width="160"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+        </TabControl>
+    </Grid>
+</UserControl>

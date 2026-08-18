@@ -1,0 +1,8 @@
+{
+    "jwt_secret": "CHANGE_ME_YOUR_JWT_SECRET_HERE_32_BYTES_BASE64",
+    "quarantine_key": "",
+    "server_port": 8443,
+    "grpc_port": 9443,
+    "ws_port": 7443,
+    "features": ["core", "codebert", "yara", "realtime_monitoring", "system_restore"]
+}

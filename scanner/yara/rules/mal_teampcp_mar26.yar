@@ -1,0 +1,34 @@
+rule MAL_LiteLLM_SupplyChain_Mar26 {
+   meta:
+      description = "Detects malicious indicators used in LiteLLM supply chain attack"
+      author = "Marius Benthin"
+      date = "2026-03-28"
+      reference = "https://github.com/BerriAI/litellm/issues/24512"
+      hash = "71e35aef03099cd1f2d6446734273025a163597de93912df321ef118bf135238"
+      score = 80
+      id = "a6ea2621-af92-591c-89e1-5be6efe9f6b8"
+   strings:
+      $s1 = "exec(.b64decode("
+      $s2 = "litellm." 
+      $s3 = "subprocess.DEVNULL"
+condition:
+    any of them
+}
+
+rule MAL_Telnyx_SupplyChain_Mar26 {
+   meta:
+      description = "Detects malicious indicators used in Telnyx supply chain attack"
+      author = "Marius Benthin"
+      date = "2026-03-28"
+      reference = "https://www.aikido.dev/blog/telnyx-pypi-compromised-teampcp-canisterworm"
+      hash = "ab4c4aebb52027bf3d2f6b2dcef593a1a2cff415774ea4711f7d6e0aa1451d4e"
+      score = 80
+      id = "73d9c3d4-7274-5278-aea3-7e921bf5d0b2"
+   strings:
+      $s1 = "bXNidWlsZC5leGU=" // msbuild.exe
+      $s2 = "TW96aWxsY" // Mozilla/
+      $s3 = ".getnframes(" // number of WAV audio frames
+      $s4 = "exec(.b64decode("
+condition:
+    any of them
+}

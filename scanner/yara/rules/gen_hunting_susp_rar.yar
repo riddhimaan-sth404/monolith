@@ -1,0 +1,15 @@
+/* Threat Hunting Rule - note the score of 40 > Notice */
+
+rule SUSP_RAR_Single_Doc_File {
+   meta:
+      description = "Detects suspicious RAR files that contain nothing but a single .doc file"
+      author = "Florian Roth (Nextron Systems)"
+      reference = "Internal Research"
+      date = "2020-07-11"
+      score = 40
+      id = "92dc3a5d-d12c-56d3-8531-25b3da1e1595"
+   strings:
+      $s1 = ".doc"
+condition:
+    any of them
+}
