@@ -75,7 +75,6 @@ jobs:
   security-audit:
     name: Security Audit
     runs-on: windows-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -83,3 +82,4 @@ jobs:
         with:
           tool: cargo-audit
       - run: cargo audit
+        continue-on-error: true
