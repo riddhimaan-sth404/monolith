@@ -39,11 +39,11 @@ jobs:
       - name: Build driver
         run: msbuild driver/edr.vcxproj /p:Configuration=Release /p:Platform=x64
 
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
       - name: Build GUI
-        run: |
-          pip install pyinstaller -r requirements.txt
-          pyinstaller --onefile --windowed --name "Monolith" app/main.py
-        working-directory: gui
+        run: msbuild gui-csharp/MonolithGui.csproj /t:Restore,Build /p:Configuration=Release
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -53,6 +53,6 @@ jobs:
             target/release/monolith-backend.exe
             target/release/monolith-agent.exe
             build/scanner.exe
-            gui/dist/Monolith.exe
+            gui-csharp/bin/Release/MonolithGui.exe
             driver/edr.inf
             driver/x64/Release/edr.sys

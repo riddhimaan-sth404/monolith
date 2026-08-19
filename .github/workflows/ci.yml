@@ -34,19 +34,13 @@ jobs:
       - run: go vet ./...
         working-directory: scanner
 
-  lint-py:
-    name: Lint Python
+  build-gui:
+    name: Build C# GUI
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: pip install ruff
-      - run: ruff check .
-        working-directory: gui
-      - run: ruff format --check .
-        working-directory: gui
+      - uses: microsoft/setup-msbuild@v2
+      - run: msbuild gui-csharp/MonolithGui.csproj /t:Restore,Build /p:Configuration=Release
 
   test-rust:
     name: Test Rust
@@ -67,19 +61,6 @@ jobs:
           go-version: stable
       - run: go test ./... -v -count=1
         working-directory: scanner
-
-  test-py:
-    name: Test Python
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: pip install -r requirements.txt
-        working-directory: gui
-      - run: python -m pytest tests/ -v || echo "No tests found"
-        working-directory: gui
 
   test-integration:
     name: Test Integration
