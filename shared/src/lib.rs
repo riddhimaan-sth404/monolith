@@ -1,4 +1,5 @@
 #![allow(missing_docs)]
+#![allow(clippy::all)]
 
 pub mod auth;
 pub mod config;
