@@ -1,7 +1,7 @@
+use crate::error::ServiceResult;
+use monolith_shared::types::EventId;
 use serde_json::Value;
 use uuid::Uuid;
-use monolith_shared::types::EventId;
-use crate::error::ServiceResult;
 
 pub struct EventService;
 
@@ -34,7 +34,10 @@ impl EventService {
         if let Some(obj) = event.as_object_mut() {
             obj.insert("collected_at".into(), Value::String(now));
             if obj.get("id").is_none() {
-                obj.insert("id".into(), Value::String(self.generate_event_id().to_string()));
+                obj.insert(
+                    "id".into(),
+                    Value::String(self.generate_event_id().to_string()),
+                );
             }
         }
         event

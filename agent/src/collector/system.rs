@@ -1,6 +1,6 @@
 #![allow(unsafe_code)]
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::mem;
 
 pub struct SystemCollector;
@@ -17,8 +17,8 @@ impl SystemCollector {
         {
             // Query system information via GetNativeSystemInfo
             use windows_sys::Win32::System::SystemInformation::{
-                GetNativeSystemInfo, SYSTEM_INFO, PROCESSOR_ARCHITECTURE_AMD64,
-                PROCESSOR_ARCHITECTURE_ARM64, PROCESSOR_ARCHITECTURE_INTEL, PROCESSOR_ARCHITECTURE_ARM,
+                GetNativeSystemInfo, PROCESSOR_ARCHITECTURE_AMD64, PROCESSOR_ARCHITECTURE_ARM,
+                PROCESSOR_ARCHITECTURE_ARM64, PROCESSOR_ARCHITECTURE_INTEL, SYSTEM_INFO,
             };
 
             unsafe {
@@ -45,8 +45,7 @@ impl SystemCollector {
 
             // Collect logon sessions via WTS APIs from RemoteDesktop module
             use windows_sys::Win32::System::RemoteDesktop::{
-                WTSEnumerateSessionsW, WTSFreeMemory, WTS_CURRENT_SERVER_HANDLE,
-                WTS_SESSION_INFOW,
+                WTS_CURRENT_SERVER_HANDLE, WTS_SESSION_INFOW, WTSEnumerateSessionsW, WTSFreeMemory,
             };
 
             unsafe {
@@ -61,9 +60,14 @@ impl SystemCollector {
                     &mut session_count,
                 ) != 0
                 {
-                    let session_slice = std::slice::from_raw_parts(sessions, session_count as usize);
+                    let session_slice =
+                        std::slice::from_raw_parts(sessions, session_count as usize);
                     for s in session_slice {
-                        let state = if s.State == 1 { "active" } else { "disconnected" };
+                        let state = if s.State == 1 {
+                            "active"
+                        } else {
+                            "disconnected"
+                        };
                         events.push(json!({
                             "event_type": "logon_session",
                             "timestamp": chrono::Utc::now().to_rfc3339(),
@@ -111,11 +115,7 @@ impl SystemCollector {
         })
     }
 
-    pub fn create_service_event(
-        name: &str,
-        display_name: &str,
-        action: &str,
-    ) -> Value {
+    pub fn create_service_event(name: &str, display_name: &str, action: &str) -> Value {
         json!({
             "event_type": "service_change",
             "timestamp": chrono::Utc::now().to_rfc3339(),

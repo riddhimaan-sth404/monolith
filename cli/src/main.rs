@@ -77,8 +77,6 @@ async fn main() -> anyhow::Result<()> {
             let client = MonolithClient::new(&config, token)?;
             cmds::health_cmd::execute(&client, &cmd.command).await
         }
-        Command::Restore(cmd) => {
-            cmds::restore_cmd::execute(&cmd.command).await
-        }
+        Command::Restore(cmd) => cmds::restore_cmd::execute(&cmd.command).await,
     }
 }

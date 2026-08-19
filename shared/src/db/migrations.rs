@@ -1,6 +1,6 @@
-use crate::error::Result;
-use super::traits::DatabaseConnection;
 use super::DbParam;
+use super::traits::DatabaseConnection;
+use crate::error::Result;
 
 pub struct MigrationManager {
     migrations: Vec<Migration>,
@@ -144,9 +144,9 @@ impl MigrationManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::sqlite::SqliteDatabase;
     use crate::config::{DatabaseConfig, DatabaseKind};
     use crate::db::Database;
+    use crate::db::sqlite::SqliteDatabase;
     use tempfile::TempDir;
 
     #[tokio::test]

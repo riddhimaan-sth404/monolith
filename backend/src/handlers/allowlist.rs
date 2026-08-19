@@ -1,9 +1,9 @@
 use axum::{
-    extract::{State, Path, Query},
     Extension, Json,
+    extract::{Path, Query, State},
 };
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -125,7 +125,9 @@ pub async fn create(
             )
         })?;
 
-    Ok(Json(json!({"id": id, "message": "Allowlist rule created successfully"})))
+    Ok(Json(
+        json!({"id": id, "message": "Allowlist rule created successfully"}),
+    ))
 }
 
 pub async fn delete(
@@ -152,5 +154,7 @@ pub async fn delete(
         ));
     }
 
-    Ok(Json(json!({"message": "Allowlist rule deleted successfully"})))
+    Ok(Json(
+        json!({"message": "Allowlist rule deleted successfully"}),
+    ))
 }

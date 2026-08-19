@@ -1,9 +1,9 @@
+use chrono::Utc;
+use prost_types::Timestamp;
 use std::collections::HashMap;
 use std::os::windows::ffi::OsStringExt;
 use std::sync::Mutex as StdMutex;
 use std::time::Instant;
-use chrono::Utc;
-use prost_types::Timestamp;
 
 use monolith_protobuf::proto::v1::{self, event::Payload};
 
@@ -37,7 +37,11 @@ pub fn handle_event(event_id: u16, pid: u32, data: &[u8], ctx: &EtwDispatchConte
         rl.insert(file_path.clone(), Instant::now());
     }
 
-    let file_name = file_path.rsplit('\\').next().unwrap_or(&file_path).to_string();
+    let file_name = file_path
+        .rsplit('\\')
+        .next()
+        .unwrap_or(&file_path)
+        .to_string();
     let extension = std::path::Path::new(&file_path)
         .extension()
         .and_then(|e| e.to_str())
@@ -59,7 +63,9 @@ pub fn handle_event(event_id: u16, pid: u32, data: &[u8], ctx: &EtwDispatchConte
     };
 
     let proto_event = v1::Event {
-        id: Some(v1::Uuid { value: uuid::Uuid::new_v4().as_bytes().to_vec() }),
+        id: Some(v1::Uuid {
+            value: uuid::Uuid::new_v4().as_bytes().to_vec(),
+        }),
         endpoint_id: None,
         event_type: event_type.into(),
         timestamp: Some(ts.clone()),
@@ -87,7 +93,10 @@ pub fn handle_event(event_id: u16, pid: u32, data: &[u8], ctx: &EtwDispatchConte
         }
     }
 
-    if matches!(operation, v1::file_event::FileOperation::FileOpCreate | v1::file_event::FileOperation::FileOpWrite) {
+    if matches!(
+        operation,
+        v1::file_event::FileOperation::FileOpCreate | v1::file_event::FileOperation::FileOpWrite
+    ) {
         let scan_url = ctx.scan_url.clone();
         let client = ctx.http_client.clone();
         let path = file_path.clone();
@@ -95,8 +104,11 @@ pub fn handle_event(event_id: u16, pid: u32, data: &[u8], ctx: &EtwDispatchConte
             let body = serde_json::json!({"path": path});
             if let Ok(rt) = tokio::runtime::Runtime::new() {
                 let _ = rt.block_on(async {
-                    let _ = client.post(&format!("{}/api/scan/file", scan_url))
-                        .json(&body).send().await;
+                    let _ = client
+                        .post(&format!("{}/api/scan/file", scan_url))
+                        .json(&body)
+                        .send()
+                        .await;
                 });
             }
         });
@@ -115,14 +127,22 @@ fn parse_file_path(data: &[u8]) -> String {
     let mut i = start;
     while i >= 2 {
         let code = u16::from_le_bytes([data[i - 2], data[i - 1]]);
-        if code == 0 { break; }
+        if code == 0 {
+            break;
+        }
         chars.push(code);
         i -= 2;
-        if chars.len() > 260 { break; }
+        if chars.len() > 260 {
+            break;
+        }
     }
     chars.reverse();
-    if chars.is_empty() { return String::new(); }
-    <std::ffi::OsString as OsStringExt>::from_wide(&chars).to_string_lossy().into_owned()
+    if chars.is_empty() {
+        return String::new();
+    }
+    <std::ffi::OsString as OsStringExt>::from_wide(&chars)
+        .to_string_lossy()
+        .into_owned()
 }
 
 #[cfg(test)]

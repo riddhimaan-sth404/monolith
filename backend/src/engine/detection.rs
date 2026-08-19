@@ -1,6 +1,6 @@
+use dashmap::DashMap;
 use serde_json::Value;
 use std::collections::HashMap;
-use dashmap::DashMap;
 
 pub struct DetectionEngine {
     ioc_matcher: super::ioc_matcher::IocMatcher,
@@ -44,7 +44,10 @@ impl DetectionEngine {
 
     fn evaluate_rule(&self, event: &Value, rule: &Value) -> Option<DetectionResult> {
         let conditions = rule.get("conditions")?;
-        let enabled = rule.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true);
+        let enabled = rule
+            .get("enabled")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(true);
         if !enabled {
             return None;
         }
@@ -55,16 +58,40 @@ impl DetectionEngine {
         }
 
         Some(DetectionResult {
-            rule_id: rule.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-            rule_name: rule.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-            severity: rule.get("severity").and_then(|v| v.as_str()).unwrap_or("medium").to_string(),
-            confidence: rule.get("confidence").and_then(|v| v.as_str()).unwrap_or("medium").to_string(),
-            mitre_technique_id: rule.get("mitre_technique_ids").and_then(|v| v.as_array())
+            rule_id: rule
+                .get("id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            rule_name: rule
+                .get("name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string(),
+            severity: rule
+                .get("severity")
+                .and_then(|v| v.as_str())
+                .unwrap_or("medium")
+                .to_string(),
+            confidence: rule
+                .get("confidence")
+                .and_then(|v| v.as_str())
+                .unwrap_or("medium")
+                .to_string(),
+            mitre_technique_id: rule
+                .get("mitre_technique_ids")
+                .and_then(|v| v.as_array())
                 .and_then(|arr| arr.first())
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string()),
-            tags: rule.get("tags").and_then(|v| v.as_array())
-                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+            tags: rule
+                .get("tags")
+                .and_then(|v| v.as_array())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                        .collect()
+                })
                 .unwrap_or_default(),
             score: self.calculate_score(rule),
             matched_fields: HashMap::new(),
@@ -72,7 +99,9 @@ impl DetectionEngine {
     }
 
     fn get_field<'a>(&self, event: &'a Value, field: &str) -> Option<&'a Value> {
-        event.get(field).or_else(|| event.get("data").and_then(|d| d.get(field)))
+        event
+            .get(field)
+            .or_else(|| event.get("data").and_then(|d| d.get(field)))
     }
 
     fn check_conditions(&self, event: &Value, conditions: &Value) -> bool {
@@ -92,7 +121,10 @@ impl DetectionEngine {
                         }
                         Value::Array(arr) => {
                             if let Some(v) = event_val.and_then(|v| v.as_str()) {
-                                if !arr.iter().any(|c| c.as_str().map_or(false, |s| v.contains(s))) {
+                                if !arr
+                                    .iter()
+                                    .any(|c| c.as_str().map_or(false, |s| v.contains(s)))
+                                {
                                     return false;
                                 }
                             } else {
@@ -100,7 +132,10 @@ impl DetectionEngine {
                             }
                         }
                         Value::Object(sub_conditions) => {
-                            if !self.check_conditions(event_val.unwrap_or(&Value::Null), &Value::Object(sub_conditions.clone())) {
+                            if !self.check_conditions(
+                                event_val.unwrap_or(&Value::Null),
+                                &Value::Object(sub_conditions.clone()),
+                            ) {
                                 return false;
                             }
                         }
@@ -114,8 +149,14 @@ impl DetectionEngine {
     }
 
     fn calculate_score(&self, rule: &Value) -> f64 {
-        let severity = rule.get("severity").and_then(|v| v.as_str()).unwrap_or("medium");
-        let confidence = rule.get("confidence").and_then(|v| v.as_str()).unwrap_or("medium");
+        let severity = rule
+            .get("severity")
+            .and_then(|v| v.as_str())
+            .unwrap_or("medium");
+        let confidence = rule
+            .get("confidence")
+            .and_then(|v| v.as_str())
+            .unwrap_or("medium");
 
         let severity_score = match severity {
             "critical" => 10.0,

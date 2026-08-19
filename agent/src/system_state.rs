@@ -52,20 +52,46 @@ impl SystemStateMonitor {
             last_foreground_pid: 0,
             last_activity_tick: start,
             cached_game_list: vec![
-                "csgo.exe", "dota2.exe", "lol.exe", "LeagueClient.exe",
-                "overwatch.exe", "fortnite.exe", "Valorant.exe",
-                "VALORANT-Win64-Shipping.exe", "RustClient.exe",
-                "Minecraft.exe", "javaw.exe", "steam.exe",
-                "epicgameslauncher.exe", "battle.net.exe",
-                "GTA5.exe", "RDR2.exe", "Cyberpunk2077.exe",
-                "eldenring.exe", "CallOfDuty.exe", "ModernWarfare.exe",
-                "Apex Legends.exe", "r5apex.exe", "RainbowSix.exe",
-                "RainbowSix_Vulkan.exe", "Destiny2.exe", "Wow.exe",
-                "WorldOfWarcraft.exe", "StarCraftII.exe", "DiabloIII64.exe",
-                "Hearthstone.exe", "HeroesOfTheStorm64.exe",
-                "PUBG.exe", "TslGame.exe", "RocketLeague.exe",
-                "FIFA22.exe", "FIFA23.exe",
-            ].into_iter().map(|s| s.to_lowercase()).collect(),
+                "csgo.exe",
+                "dota2.exe",
+                "lol.exe",
+                "LeagueClient.exe",
+                "overwatch.exe",
+                "fortnite.exe",
+                "Valorant.exe",
+                "VALORANT-Win64-Shipping.exe",
+                "RustClient.exe",
+                "Minecraft.exe",
+                "javaw.exe",
+                "steam.exe",
+                "epicgameslauncher.exe",
+                "battle.net.exe",
+                "GTA5.exe",
+                "RDR2.exe",
+                "Cyberpunk2077.exe",
+                "eldenring.exe",
+                "CallOfDuty.exe",
+                "ModernWarfare.exe",
+                "Apex Legends.exe",
+                "r5apex.exe",
+                "RainbowSix.exe",
+                "RainbowSix_Vulkan.exe",
+                "Destiny2.exe",
+                "Wow.exe",
+                "WorldOfWarcraft.exe",
+                "StarCraftII.exe",
+                "DiabloIII64.exe",
+                "Hearthstone.exe",
+                "HeroesOfTheStorm64.exe",
+                "PUBG.exe",
+                "TslGame.exe",
+                "RocketLeague.exe",
+                "FIFA22.exe",
+                "FIFA23.exe",
+            ]
+            .into_iter()
+            .map(|s| s.to_lowercase())
+            .collect(),
         }
     }
 
@@ -83,7 +109,8 @@ impl SystemStateMonitor {
 
     pub fn poll(&mut self) -> PcProfile {
         let profile = self.detect_profile();
-        self.current_profile.store(profile as i32, Ordering::Relaxed);
+        self.current_profile
+            .store(profile as i32, Ordering::Relaxed);
         profile
     }
 
@@ -127,7 +154,8 @@ impl SystemStateMonitor {
 
                 if pid != self.last_foreground_pid {
                     self.last_foreground_pid = pid;
-                    self.last_activity_tick = windows_sys::Win32::System::SystemInformation::GetTickCount();
+                    self.last_activity_tick =
+                        windows_sys::Win32::System::SystemInformation::GetTickCount();
                 }
 
                 let handle = windows_sys::Win32::System::Threading::OpenProcess(
@@ -171,10 +199,7 @@ impl SystemStateMonitor {
     fn is_presentation_mode(&self) -> bool {
         let key = r"SOFTWARE\Microsoft\Windows\CurrentVersion\PresentationSettings";
         use std::os::windows::ffi::OsStrExt;
-        let wide: Vec<u16> = std::ffi::OsStr::new(key)
-            .encode_wide()
-            .chain([0])
-            .collect();
+        let wide: Vec<u16> = std::ffi::OsStr::new(key).encode_wide().chain([0]).collect();
 
         let mut hkey = std::ptr::null_mut();
         let result = unsafe {
@@ -272,7 +297,8 @@ impl SystemStateMonitor {
     #[cfg(windows)]
     fn get_cpu_times() -> (u64, u64, u64) {
         let mut idle = std::mem::MaybeUninit::<windows_sys::Win32::Foundation::FILETIME>::uninit();
-        let mut kernel = std::mem::MaybeUninit::<windows_sys::Win32::Foundation::FILETIME>::uninit();
+        let mut kernel =
+            std::mem::MaybeUninit::<windows_sys::Win32::Foundation::FILETIME>::uninit();
         let mut user = std::mem::MaybeUninit::<windows_sys::Win32::Foundation::FILETIME>::uninit();
 
         unsafe {

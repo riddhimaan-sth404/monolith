@@ -1,22 +1,25 @@
-use std::sync::Arc;
-use tower::Service;
-use tokio::net::TcpListener;
-use tokio_rustls::TlsAcceptor;
-use rustls::{ServerConfig as TlsServerConfig, pki_types::{CertificateDer, PrivateKeyDer}};
-use rustls_pemfile::{certs, Item};
+use rustls::{
+    ServerConfig as TlsServerConfig,
+    pki_types::{CertificateDer, PrivateKeyDer},
+};
+use rustls_pemfile::{Item, certs};
 use std::fs::File;
 use std::io::BufReader;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::sync::Arc as StdArc;
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicBool, Ordering};
+use tokio::net::TcpListener;
+use tokio_rustls::TlsAcceptor;
+use tower::Service;
 use tracing::info;
 
 use crate::config::AppConfig;
-use crate::router::build_router;
-use crate::services::service_registry::ServiceRegistry;
-use crate::services::detection_service::DetectionService;
 use crate::engine::detection::DetectionEngine;
 use crate::engine::response_rules;
+use crate::router::build_router;
+use crate::services::detection_service::DetectionService;
+use crate::services::service_registry::ServiceRegistry;
 use monolith_shared::db::DatabaseConnection;
 use std::sync::atomic::AtomicI64;
 
@@ -127,34 +130,37 @@ impl Server {
             let acceptor = acceptor.clone();
             let app = app.clone();
 
-    tokio::spawn(async move {
-        let tls_stream = match acceptor.accept(tcp_stream).await {
-            Ok(s) => s,
-            Err(e) => {
-                tracing::error!("TLS accept error from {}: {}", peer_addr, e);
-                return;
-            }
-        };
-        let io = hyper_util::rt::TokioIo::new(tls_stream);
-        let svc = hyper::service::service_fn(move |req: hyper::Request<hyper::body::Incoming>| {
-            let mut app = app.clone();
-            async move {
-                let (parts, body) = req.into_parts();
-                let bytes = http_body_util::BodyExt::collect(body).await
-                    .map(|b| b.to_bytes())
-                    .unwrap_or_default();
-                let body = axum::body::Body::from(bytes);
-                let req = hyper::Request::from_parts(parts, body);
-                app.call(req).await
-            }
-        });
-        if let Err(e) = hyper::server::conn::http1::Builder::new()
-            .serve_connection(io, svc)
-            .await
-        {
-            tracing::error!("connection error from {}: {}", peer_addr, e);
-        }
-    });
+            tokio::spawn(async move {
+                let tls_stream = match acceptor.accept(tcp_stream).await {
+                    Ok(s) => s,
+                    Err(e) => {
+                        tracing::error!("TLS accept error from {}: {}", peer_addr, e);
+                        return;
+                    }
+                };
+                let io = hyper_util::rt::TokioIo::new(tls_stream);
+                let svc = hyper::service::service_fn(
+                    move |req: hyper::Request<hyper::body::Incoming>| {
+                        let mut app = app.clone();
+                        async move {
+                            let (parts, body) = req.into_parts();
+                            let bytes = http_body_util::BodyExt::collect(body)
+                                .await
+                                .map(|b| b.to_bytes())
+                                .unwrap_or_default();
+                            let body = axum::body::Body::from(bytes);
+                            let req = hyper::Request::from_parts(parts, body);
+                            app.call(req).await
+                        }
+                    },
+                );
+                if let Err(e) = hyper::server::conn::http1::Builder::new()
+                    .serve_connection(io, svc)
+                    .await
+                {
+                    tracing::error!("connection error from {}: {}", peer_addr, e);
+                }
+            });
         }
     }
 
@@ -162,8 +168,7 @@ impl Server {
         let cert_file = &mut BufReader::new(File::open(&self.config.tls.cert_path)?);
         let key_file = &mut BufReader::new(File::open(&self.config.tls.key_path)?);
 
-        let cert_chain: Vec<CertificateDer> = certs(cert_file)
-            .collect::<Result<Vec<_>, _>>()?;
+        let cert_chain: Vec<CertificateDer> = certs(cert_file).collect::<Result<Vec<_>, _>>()?;
 
         let mut keys: Vec<PrivateKeyDer<'static>> = Vec::new();
         loop {
@@ -230,32 +235,46 @@ fn load_response_rules(config: &AppConfig) -> Vec<response_rules::ResponseRule> 
                     return response_rules::default_rules();
                 }
             };
-            let rules_list = parsed.get("rules")
+            let rules_list = parsed
+                .get("rules")
                 .and_then(|v| v.as_array())
                 .map(|arr| {
-                    arr.iter().filter_map(|v| {
-                        let id = v.get("id").and_then(|s| s.as_str())?.to_string();
-                        let name = v.get("name").and_then(|s| s.as_str())?.to_string();
-                        let cooldown_secs = v.get("cooldown_secs").and_then(|s| s.as_integer()).unwrap_or(60) as u64;
-                        let enabled = v.get("enabled").and_then(|b| b.as_bool()).unwrap_or(true);
+                    arr.iter()
+                        .filter_map(|v| {
+                            let id = v.get("id").and_then(|s| s.as_str())?.to_string();
+                            let name = v.get("name").and_then(|s| s.as_str())?.to_string();
+                            let cooldown_secs =
+                                v.get("cooldown_secs")
+                                    .and_then(|s| s.as_integer())
+                                    .unwrap_or(60) as u64;
+                            let enabled =
+                                v.get("enabled").and_then(|b| b.as_bool()).unwrap_or(true);
 
-                        let action_str = v.get("action").and_then(|s| s.as_str())?;
-                        let action = match action_str {
-                            "isolate_endpoint" => response_rules::RuleAction::IsolateEndpoint,
-                            "quarantine_file" => response_rules::RuleAction::QuarantineFile,
-                            "terminate_process" => response_rules::RuleAction::TerminateProcess,
-                            "run_sandbox" => response_rules::RuleAction::RunSandbox,
-                            "kill_and_quarantine" => response_rules::RuleAction::KillAndQuarantine,
-                            _ => response_rules::RuleAction::AlertOnly,
-                        };
+                            let action_str = v.get("action").and_then(|s| s.as_str())?;
+                            let action = match action_str {
+                                "isolate_endpoint" => response_rules::RuleAction::IsolateEndpoint,
+                                "quarantine_file" => response_rules::RuleAction::QuarantineFile,
+                                "terminate_process" => response_rules::RuleAction::TerminateProcess,
+                                "run_sandbox" => response_rules::RuleAction::RunSandbox,
+                                "kill_and_quarantine" => {
+                                    response_rules::RuleAction::KillAndQuarantine
+                                }
+                                _ => response_rules::RuleAction::AlertOnly,
+                            };
 
-                        let condition_val = v.get("condition")?;
-                        let condition = parse_condition(condition_val)?;
+                            let condition_val = v.get("condition")?;
+                            let condition = parse_condition(condition_val)?;
 
-                        Some(response_rules::ResponseRule {
-                            id, name, condition, action, cooldown_secs, enabled,
+                            Some(response_rules::ResponseRule {
+                                id,
+                                name,
+                                condition,
+                                action,
+                                cooldown_secs,
+                                enabled,
+                            })
                         })
-                    }).collect::<Vec<_>>()
+                        .collect::<Vec<_>>()
                 })
                 .unwrap_or_default();
 
@@ -268,7 +287,11 @@ fn load_response_rules(config: &AppConfig) -> Vec<response_rules::ResponseRule> 
             }
         }
         Err(e) => {
-            tracing::warn!("failed to read response rules config ({}), using defaults: {}", path, e);
+            tracing::warn!(
+                "failed to read response rules config ({}), using defaults: {}",
+                path,
+                e
+            );
             response_rules::default_rules()
         }
     }
@@ -282,13 +305,19 @@ fn parse_condition(v: &toml::Value) -> Option<response_rules::RuleCondition> {
             Some(response_rules::RuleCondition::MinSeverity { value })
         }
         "source" => {
-            let sources = v.get("sources")?.as_array()?.iter()
+            let sources = v
+                .get("sources")?
+                .as_array()?
+                .iter()
                 .filter_map(|s| s.as_str()?.parse::<response_rules::DetectionSource>().ok())
                 .collect();
             Some(response_rules::RuleCondition::Source { sources })
         }
         "correlation" => {
-            let correlation_types = v.get("correlation_types")?.as_array()?.iter()
+            let correlation_types = v
+                .get("correlation_types")?
+                .as_array()?
+                .iter()
                 .filter_map(|s| s.as_str()?.parse::<response_rules::CorrelationType>().ok())
                 .collect();
             Some(response_rules::RuleCondition::Correlation { correlation_types })
@@ -303,7 +332,10 @@ fn parse_condition(v: &toml::Value) -> Option<response_rules::RuleCondition> {
         }
         "composite" => {
             let op = v.get("op")?.as_str()?.to_string();
-            let conditions = v.get("conditions")?.as_array()?.iter()
+            let conditions = v
+                .get("conditions")?
+                .as_array()?
+                .iter()
                 .filter_map(|c| parse_condition(c))
                 .collect();
             Some(response_rules::RuleCondition::Composite { op, conditions })

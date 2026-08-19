@@ -1,9 +1,9 @@
 use axum::{
-    extract::{State, Path, Query},
     Json,
+    extract::{Path, Query, State},
 };
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 
 use crate::server::AppState;
@@ -34,9 +34,14 @@ pub async fn ingest(
     Json(req): Json<IngestEventRequest>,
 ) -> Result<Json<Value>, (axum::http::StatusCode, Json<Value>)> {
     let event_id = uuid::Uuid::new_v4().to_string();
-    let timestamp = req.timestamp.unwrap_or_else(|| chrono::Utc::now().format("%Y-%m-%dT%H:%M:%S").to_string());
+    let timestamp = req
+        .timestamp
+        .unwrap_or_else(|| chrono::Utc::now().format("%Y-%m-%dT%H:%M:%S").to_string());
     let data_str = serde_json::to_string(&req.data).map_err(|e| {
-        (axum::http::StatusCode::BAD_REQUEST, Json(json!({"error": format!("invalid event data: {}", e)})))
+        (
+            axum::http::StatusCode::BAD_REQUEST,
+            Json(json!({"error": format!("invalid event data: {}", e)})),
+        )
     })?;
 
     let endpoint_id = req.endpoint_id.clone();
@@ -53,10 +58,18 @@ pub async fn ingest(
         (axum::http::StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": format!("failed to store event: {}", e)})))
     })?;
 
-    state.metrics.events_ingested.fetch_add(1, Ordering::Relaxed);
+    state
+        .metrics
+        .events_ingested
+        .fetch_add(1, Ordering::Relaxed);
 
     // Check allowlist
-    let is_allowed = state.services.allowlist_service.is_event_allowed(&req.event_type, &req.data, &*state.db).await.unwrap_or(false);
+    let is_allowed = state
+        .services
+        .allowlist_service
+        .is_event_allowed(&req.event_type, &req.data, &*state.db)
+        .await
+        .unwrap_or(false);
 
     // Run detection
     let event_value = json!({
@@ -88,11 +101,17 @@ pub async fn ingest(
             ],
         ).await;
 
-        state.metrics.alerts_generated.fetch_add(1, Ordering::Relaxed);
+        state
+            .metrics
+            .alerts_generated
+            .fetch_add(1, Ordering::Relaxed);
 
         if result.severity == "high" || result.severity == "critical" {
             let notif_title = format!("EDR Alert: {}", result.severity);
-            let notif_msg = format!("Event '{}' matched rule '{}'", req.event_type, result.rule_name);
+            let notif_msg = format!(
+                "Event '{}' matched rule '{}'",
+                req.event_type, result.rule_name
+            );
             let path = state.toast_script_path.clone();
             tokio::spawn(async move {
                 crate::notifications::send_alert_notification(path, &notif_title, &notif_msg).await;
@@ -201,10 +220,7 @@ pub async fn get(
 ) -> Result<Json<Value>, (axum::http::StatusCode, Json<Value>)> {
     let events = state
         .db
-        .query_value(
-            "SELECT * FROM events WHERE id = ?1",
-            &[DbParam::Text(id)],
-        )
+        .query_value("SELECT * FROM events WHERE id = ?1", &[DbParam::Text(id)])
         .await
         .map_err(|e| {
             (
@@ -231,7 +247,11 @@ pub async fn ws_events(
         let mut rx = state.event_bus.subscribe();
         while let Ok(msg) = rx.recv().await {
             let text = msg.to_string();
-            if socket.send(axum::extract::ws::Message::Text(text.into())).await.is_err() {
+            if socket
+                .send(axum::extract::ws::Message::Text(text.into()))
+                .await
+                .is_err()
+            {
                 break;
             }
         }

@@ -1,5 +1,5 @@
-use uuid::Uuid;
 use monolith_shared::types::{AlertId, AlertSeverity, AlertStatus};
+use uuid::Uuid;
 
 pub struct AlertService;
 

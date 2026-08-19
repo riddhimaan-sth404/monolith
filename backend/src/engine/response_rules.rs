@@ -65,11 +65,21 @@ impl std::str::FromStr for CorrelationType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum RuleCondition {
-    MinSeverity { value: u32 },
-    Source { sources: Vec<DetectionSource> },
-    Correlation { correlation_types: Vec<CorrelationType> },
-    MinScore { value: f64 },
-    MaxScore { value: f64 },
+    MinSeverity {
+        value: u32,
+    },
+    Source {
+        sources: Vec<DetectionSource>,
+    },
+    Correlation {
+        correlation_types: Vec<CorrelationType>,
+    },
+    MinScore {
+        value: f64,
+    },
+    MaxScore {
+        value: f64,
+    },
     Composite {
         op: String,
         conditions: Vec<RuleCondition>,
@@ -80,9 +90,7 @@ impl RuleCondition {
     pub fn matches(&self, alert: &AlertInfo) -> bool {
         match self {
             RuleCondition::MinSeverity { value } => alert.severity_score >= *value,
-            RuleCondition::Source { sources } => {
-                sources.iter().any(|s| alert.sources.contains(s))
-            }
+            RuleCondition::Source { sources } => sources.iter().any(|s| alert.sources.contains(s)),
             RuleCondition::Correlation { correlation_types } => {
                 if let Some(ref ct) = alert.correlation_type {
                     correlation_types.contains(ct)
@@ -92,13 +100,11 @@ impl RuleCondition {
             }
             RuleCondition::MinScore { value } => alert.score >= *value,
             RuleCondition::MaxScore { value } => alert.score <= *value,
-            RuleCondition::Composite { op, conditions } => {
-                match op.to_lowercase().as_str() {
-                    "and" => conditions.iter().all(|c| c.matches(alert)),
-                    "or" => conditions.iter().any(|c| c.matches(alert)),
-                    _ => false,
-                }
-            }
+            RuleCondition::Composite { op, conditions } => match op.to_lowercase().as_str() {
+                "and" => conditions.iter().all(|c| c.matches(alert)),
+                "or" => conditions.iter().any(|c| c.matches(alert)),
+                _ => false,
+            },
         }
     }
 }
@@ -244,7 +250,9 @@ pub fn default_rules() -> Vec<ResponseRule> {
             condition: RuleCondition::Composite {
                 op: "and".into(),
                 conditions: vec![
-                    RuleCondition::Source { sources: vec![DetectionSource::Ioc] },
+                    RuleCondition::Source {
+                        sources: vec![DetectionSource::Ioc],
+                    },
                     RuleCondition::MinSeverity { value: 5 },
                 ],
             },
@@ -294,7 +302,9 @@ pub fn default_rules() -> Vec<ResponseRule> {
             condition: RuleCondition::Composite {
                 op: "and".into(),
                 conditions: vec![
-                    RuleCondition::Source { sources: vec![DetectionSource::Yara] },
+                    RuleCondition::Source {
+                        sources: vec![DetectionSource::Yara],
+                    },
                     RuleCondition::MinSeverity { value: 4 },
                 ],
             },
@@ -308,7 +318,9 @@ pub fn default_rules() -> Vec<ResponseRule> {
             condition: RuleCondition::Composite {
                 op: "and".into(),
                 conditions: vec![
-                    RuleCondition::Source { sources: vec![DetectionSource::Ember] },
+                    RuleCondition::Source {
+                        sources: vec![DetectionSource::Ember],
+                    },
                     RuleCondition::MinScore { value: 8.0 },
                 ],
             },
@@ -322,7 +334,9 @@ pub fn default_rules() -> Vec<ResponseRule> {
             condition: RuleCondition::Composite {
                 op: "and".into(),
                 conditions: vec![
-                    RuleCondition::Source { sources: vec![DetectionSource::Ember] },
+                    RuleCondition::Source {
+                        sources: vec![DetectionSource::Ember],
+                    },
                     RuleCondition::MinScore { value: 3.0 },
                     RuleCondition::MaxScore { value: 7.999 },
                 ],
@@ -390,7 +404,12 @@ pub fn default_rules() -> Vec<ResponseRule> {
 mod tests {
     use super::*;
 
-    fn test_alert(severity_score: u32, sources: Vec<DetectionSource>, correlation: Option<CorrelationType>, score: f64) -> AlertInfo {
+    fn test_alert(
+        severity_score: u32,
+        sources: Vec<DetectionSource>,
+        correlation: Option<CorrelationType>,
+        score: f64,
+    ) -> AlertInfo {
         AlertInfo {
             rule_id: "test".into(),
             rule_name: "test".into(),
@@ -414,7 +433,9 @@ mod tests {
 
     #[test]
     fn test_source_matches() {
-        let cond = RuleCondition::Source { sources: vec![DetectionSource::Ioc] };
+        let cond = RuleCondition::Source {
+            sources: vec![DetectionSource::Ioc],
+        };
         assert!(cond.matches(&test_alert(0, vec![DetectionSource::Ioc], None, 0.0)));
         assert!(!cond.matches(&test_alert(0, vec![DetectionSource::Yara], None, 0.0)));
     }
@@ -424,7 +445,12 @@ mod tests {
         let cond = RuleCondition::Correlation {
             correlation_types: vec![CorrelationType::CredentialDumping],
         };
-        assert!(cond.matches(&test_alert(0, vec![], Some(CorrelationType::CredentialDumping), 0.0)));
+        assert!(cond.matches(&test_alert(
+            0,
+            vec![],
+            Some(CorrelationType::CredentialDumping),
+            0.0
+        )));
         assert!(!cond.matches(&test_alert(0, vec![], Some(CorrelationType::Lolbin), 0.0)));
     }
 
@@ -434,7 +460,9 @@ mod tests {
             op: "and".into(),
             conditions: vec![
                 RuleCondition::MinSeverity { value: 4 },
-                RuleCondition::Source { sources: vec![DetectionSource::Ioc] },
+                RuleCondition::Source {
+                    sources: vec![DetectionSource::Ioc],
+                },
             ],
         };
         assert!(cond.matches(&test_alert(5, vec![DetectionSource::Ioc], None, 0.0)));
@@ -448,7 +476,9 @@ mod tests {
             op: "or".into(),
             conditions: vec![
                 RuleCondition::MinSeverity { value: 4 },
-                RuleCondition::Source { sources: vec![DetectionSource::Ioc] },
+                RuleCondition::Source {
+                    sources: vec![DetectionSource::Ioc],
+                },
             ],
         };
         assert!(cond.matches(&test_alert(5, vec![], None, 0.0)));
@@ -458,16 +488,14 @@ mod tests {
 
     #[test]
     fn test_rule_engine_disabled_rule() {
-        let mut engine = RuleEngine::new(vec![
-            ResponseRule {
-                id: "test".into(),
-                name: "test".into(),
-                condition: RuleCondition::MinSeverity { value: 1 },
-                action: RuleAction::AlertOnly,
-                cooldown_secs: 0,
-                enabled: false,
-            },
-        ]);
+        let mut engine = RuleEngine::new(vec![ResponseRule {
+            id: "test".into(),
+            name: "test".into(),
+            condition: RuleCondition::MinSeverity { value: 1 },
+            action: RuleAction::AlertOnly,
+            cooldown_secs: 0,
+            enabled: false,
+        }]);
         let alert = test_alert(5, vec![], None, 0.0);
         let actions = engine.evaluate(&alert);
         assert!(actions.is_empty());
@@ -475,16 +503,14 @@ mod tests {
 
     #[test]
     fn test_rule_engine_cooldown() {
-        let mut engine = RuleEngine::new(vec![
-            ResponseRule {
-                id: "test".into(),
-                name: "test".into(),
-                condition: RuleCondition::MinSeverity { value: 1 },
-                action: RuleAction::AlertOnly,
-                cooldown_secs: 3600,
-                enabled: true,
-            },
-        ]);
+        let mut engine = RuleEngine::new(vec![ResponseRule {
+            id: "test".into(),
+            name: "test".into(),
+            condition: RuleCondition::MinSeverity { value: 1 },
+            action: RuleAction::AlertOnly,
+            cooldown_secs: 3600,
+            enabled: true,
+        }]);
         let alert = test_alert(5, vec![], None, 0.0);
         let first = engine.evaluate(&alert);
         assert_eq!(first.len(), 1);
@@ -494,23 +520,19 @@ mod tests {
 
     #[test]
     fn test_rule_engine_matches() {
-        let mut engine = RuleEngine::new(vec![
-            ResponseRule {
-                id: "test".into(),
-                name: "test".into(),
-                condition: RuleCondition::Composite {
-                    op: "and".into(),
-                    conditions: vec![
-                        RuleCondition::Correlation {
-                            correlation_types: vec![CorrelationType::CredentialDumping],
-                        },
-                    ],
-                },
-                action: RuleAction::IsolateEndpoint,
-                cooldown_secs: 300,
-                enabled: true,
+        let mut engine = RuleEngine::new(vec![ResponseRule {
+            id: "test".into(),
+            name: "test".into(),
+            condition: RuleCondition::Composite {
+                op: "and".into(),
+                conditions: vec![RuleCondition::Correlation {
+                    correlation_types: vec![CorrelationType::CredentialDumping],
+                }],
             },
-        ]);
+            action: RuleAction::IsolateEndpoint,
+            cooldown_secs: 300,
+            enabled: true,
+        }]);
         let alert = test_alert(5, vec![], Some(CorrelationType::CredentialDumping), 0.0);
         let actions = engine.evaluate(&alert);
         assert_eq!(actions.len(), 1);

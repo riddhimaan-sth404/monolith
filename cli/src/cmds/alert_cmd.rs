@@ -54,7 +54,11 @@ pub struct UnsuppressArgs {
     pub id: String,
 }
 
-pub async fn execute(client: &MonolithClient, cmd: &AlertCommand, global_output: &str) -> anyhow::Result<()> {
+pub async fn execute(
+    client: &MonolithClient,
+    cmd: &AlertCommand,
+    global_output: &str,
+) -> anyhow::Result<()> {
     match cmd {
         AlertCommand::List(args) => list(client, args, global_output).await,
         AlertCommand::Get(args) => get(client, args).await,
@@ -103,7 +107,9 @@ async fn list(client: &MonolithClient, args: &ListArgs, global_output: &str) -> 
 }
 
 async fn get(client: &MonolithClient, args: &GetArgs) -> anyhow::Result<()> {
-    let v = client.get_raw(&format!("/api/v1/alerts/{}", args.id)).await?;
+    let v = client
+        .get_raw(&format!("/api/v1/alerts/{}", args.id))
+        .await?;
     output::print_value(&v);
     Ok(())
 }
@@ -128,7 +134,10 @@ async fn suppress(client: &MonolithClient, args: &SuppressArgs) -> anyhow::Resul
 
 async fn unsuppress(client: &MonolithClient, args: &UnsuppressArgs) -> anyhow::Result<()> {
     client
-        .post_raw(&format!("/api/v1/alerts/{}/unsuppress", args.id), &serde_json::json!({}))
+        .post_raw(
+            &format!("/api/v1/alerts/{}/unsuppress", args.id),
+            &serde_json::json!({}),
+        )
         .await?;
     output::ok("Alert unsuppressed");
     Ok(())

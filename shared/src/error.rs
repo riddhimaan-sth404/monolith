@@ -143,7 +143,10 @@ mod tests {
             "authorization failed: no access"
         );
         assert_eq!(EdrError::TokenExpired.to_string(), "token expired");
-        assert_eq!(EdrError::InvalidCredentials.to_string(), "invalid credentials");
+        assert_eq!(
+            EdrError::InvalidCredentials.to_string(),
+            "invalid credentials"
+        );
         assert_eq!(
             EdrError::DatabaseError("disk full".into()).to_string(),
             "database error: disk full"
@@ -152,10 +155,7 @@ mod tests {
             EdrError::NotFound("user".into()).to_string(),
             "record not found: user"
         );
-        assert_eq!(
-            EdrError::DriverNotLoaded.to_string(),
-            "driver not loaded"
-        );
+        assert_eq!(EdrError::DriverNotLoaded.to_string(), "driver not loaded");
         assert_eq!(EdrError::NotImplemented.to_string(), "not implemented");
     }
 
@@ -174,14 +174,23 @@ mod tests {
 
     #[test]
     fn test_http_status_codes() {
-        assert_eq!(EdrError::AuthenticationFailed("x".into()).http_status_code(), 401);
-        assert_eq!(EdrError::AuthorizationFailed("x".into()).http_status_code(), 403);
+        assert_eq!(
+            EdrError::AuthenticationFailed("x".into()).http_status_code(),
+            401
+        );
+        assert_eq!(
+            EdrError::AuthorizationFailed("x".into()).http_status_code(),
+            403
+        );
         assert_eq!(EdrError::InvalidToken("x".into()).http_status_code(), 401);
         assert_eq!(EdrError::TokenExpired.http_status_code(), 401);
         assert_eq!(EdrError::InvalidCredentials.http_status_code(), 401);
         assert_eq!(EdrError::NotFound("x".into()).http_status_code(), 404);
         assert_eq!(EdrError::Duplicate("x".into()).http_status_code(), 409);
-        assert_eq!(EdrError::ValidationError("x".into()).http_status_code(), 400);
+        assert_eq!(
+            EdrError::ValidationError("x".into()).http_status_code(),
+            400
+        );
         assert_eq!(EdrError::InvalidInput("x".into()).http_status_code(), 400);
         assert_eq!(EdrError::ConfigError("x".into()).http_status_code(), 500);
         assert_eq!(EdrError::Internal("x".into()).http_status_code(), 500);

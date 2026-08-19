@@ -1,6 +1,6 @@
-use uuid::Uuid;
-use monolith_shared::types::ScanId;
 use crate::error::ServiceResult;
+use monolith_shared::types::ScanId;
+use uuid::Uuid;
 
 pub struct ScanService;
 
@@ -21,9 +21,10 @@ impl ScanService {
                 ));
             }
             if !path.starts_with("C:\\") && !path.starts_with("D:\\") {
-                return Err(monolith_shared::error::EdrError::ValidationError(
-                    format!("invalid scan path: {}", path),
-                ));
+                return Err(monolith_shared::error::EdrError::ValidationError(format!(
+                    "invalid scan path: {}",
+                    path
+                )));
             }
         }
         Ok(())

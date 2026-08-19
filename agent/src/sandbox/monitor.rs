@@ -1,15 +1,15 @@
 #![allow(unsafe_code)]
 
+use crate::sandbox::report::SandboxReport;
 use monolith_shared::error::{EdrError, Result};
-use windows_sys::Win32::Foundation::{CloseHandle, HANDLE, WAIT_TIMEOUT};
-use windows_sys::Win32::System::Threading::{
-    GetExitCodeProcess, OpenProcess, PROCESS_QUERY_INFORMATION, WaitForSingleObject,
-    PROCESS_TERMINATE, TerminateProcess,
-};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
-use crate::sandbox::report::SandboxReport;
+use windows_sys::Win32::Foundation::{CloseHandle, HANDLE, WAIT_TIMEOUT};
+use windows_sys::Win32::System::Threading::{
+    GetExitCodeProcess, OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_TERMINATE,
+    TerminateProcess, WaitForSingleObject,
+};
 
 pub struct SandboxMonitor {
     processes: HashMap<u32, (HANDLE, String)>,
@@ -31,9 +31,10 @@ impl SandboxMonitor {
     pub fn add_process(&mut self, pid: u32, name: String) -> Result<()> {
         let handle = unsafe { OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_TERMINATE, 0, pid) };
         if handle.is_null() {
-            return Err(EdrError::WindowsError(
-                format!("OpenProcess failed for pid {}", pid),
-            ));
+            return Err(EdrError::WindowsError(format!(
+                "OpenProcess failed for pid {}",
+                pid
+            )));
         }
         self.processes.insert(pid, (handle, name));
         Ok(())

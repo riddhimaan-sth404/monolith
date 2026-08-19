@@ -1,6 +1,6 @@
+use chrono::Utc;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
-use chrono::Utc;
 
 use monolith_protobuf::proto::v1;
 
@@ -43,7 +43,10 @@ impl AlertManager {
         let key = format!("{}:{}", rule_id, match_value);
         let now = Instant::now();
 
-        let entries = self.recent_alerts.entry(key.clone()).or_insert_with(Vec::new);
+        let entries = self
+            .recent_alerts
+            .entry(key.clone())
+            .or_insert_with(Vec::new);
         entries.retain(|t| t.elapsed() < Duration::from_secs(DEDUP_WINDOW_SECS));
         entries.push(now);
         let count_in_window = entries.len() as u32;
@@ -80,7 +83,10 @@ impl AlertManager {
     pub fn dedup_count(&mut self, rule_id: &str, match_value: &str) -> u32 {
         let key = format!("{}:{}", rule_id, match_value);
         if let Some(entries) = self.recent_alerts.get(&key) {
-            entries.iter().filter(|t| t.elapsed() < Duration::from_secs(DEDUP_WINDOW_SECS)).count() as u32
+            entries
+                .iter()
+                .filter(|t| t.elapsed() < Duration::from_secs(DEDUP_WINDOW_SECS))
+                .count() as u32
         } else {
             0
         }
@@ -143,7 +149,13 @@ mod tests {
     #[test]
     fn test_evaluate_returns_alert_on_first_match() {
         let mut am = AlertManager::new();
-        let alert = am.evaluate("rule_001", "high", "powershell.exe", 1234, "Suspicious process");
+        let alert = am.evaluate(
+            "rule_001",
+            "high",
+            "powershell.exe",
+            1234,
+            "Suspicious process",
+        );
         assert!(alert.is_some());
         let a = alert.unwrap();
         assert_eq!(a.rule_id, "rule_001");
@@ -205,7 +217,11 @@ mod tests {
             count: 5,
         };
         let ev = am.alert_to_event(&alert);
-        let meta: std::collections::HashMap<_, _> = ev.metadata.iter().map(|m| (m.key.as_str(), m.value.as_str())).collect();
+        let meta: std::collections::HashMap<_, _> = ev
+            .metadata
+            .iter()
+            .map(|m| (m.key.as_str(), m.value.as_str()))
+            .collect();
         assert_eq!(meta.get("source"), Some(&"local_detection"));
         assert_eq!(meta.get("alert.rule_id"), Some(&"rule_xyz"));
         assert_eq!(meta.get("alert.severity"), Some(&"critical"));

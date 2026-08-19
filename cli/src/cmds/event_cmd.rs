@@ -42,7 +42,11 @@ pub struct FollowArgs {
     pub event_type: Option<String>,
 }
 
-pub async fn execute(client: &MonolithClient, cmd: &EventCommand, global_output: &str) -> anyhow::Result<()> {
+pub async fn execute(
+    client: &MonolithClient,
+    cmd: &EventCommand,
+    global_output: &str,
+) -> anyhow::Result<()> {
     match cmd {
         EventCommand::List(args) => list(client, args, global_output).await,
         EventCommand::Get(args) => get(client, args).await,
@@ -86,7 +90,9 @@ async fn list(client: &MonolithClient, args: &ListArgs, global_output: &str) -> 
 }
 
 async fn get(client: &MonolithClient, args: &GetArgs) -> anyhow::Result<()> {
-    let v = client.get_raw(&format!("/api/v1/events/{}", args.id)).await?;
+    let v = client
+        .get_raw(&format!("/api/v1/events/{}", args.id))
+        .await?;
     output::print_value(&v);
     Ok(())
 }
@@ -107,7 +113,10 @@ async fn follow(client: &MonolithClient, args: &FollowArgs) -> anyhow::Result<()
     let (ws_stream, _) = tokio_tungstenite::connect_async(req).await?;
     let (_, mut read) = ws_stream.split();
 
-    println!("{}", "Listening for live events... (Ctrl+C to stop)".dimmed());
+    println!(
+        "{}",
+        "Listening for live events... (Ctrl+C to stop)".dimmed()
+    );
     while let Some(msg) = read.next().await {
         match msg {
             Ok(tokio_tungstenite::tungstenite::Message::Text(text)) => {

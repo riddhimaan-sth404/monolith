@@ -1,11 +1,12 @@
 use crate::error::{EdrError, Result};
 use base64::Engine;
 use chrono::{DateTime, Utc};
-use ed25519_dalek::{Signature, VerifyingKey};
 use ed25519_dalek::ed25519::signature::Verifier;
+use ed25519_dalek::{Signature, VerifyingKey};
 use serde::{Deserialize, Serialize};
 
-const VENDOR_PUBLIC_KEY_HEX: &str = "84900f37fd5206c6cc9c5dec6f93bafd1f2db6aa5231e26f24751f14009e24c2";
+const VENDOR_PUBLIC_KEY_HEX: &str =
+    "84900f37fd5206c6cc9c5dec6f93bafd1f2db6aa5231e26f24751f14009e24c2";
 const LICENSE_BEGIN: &str = "-----BEGIN EDR LICENSE v1-----";
 const LICENSE_END: &str = "-----END EDR LICENSE v1-----";
 
@@ -93,12 +94,16 @@ pub fn parse_license_file(content: &str) -> Result<LicenseBundle> {
     let engine = base64::engine::general_purpose::STANDARD;
     let parts: Vec<&str> = stripped.splitn(2, '.').collect();
     if parts.len() != 2 {
-        return Err(EdrError::ConfigError("invalid license format: expected payload.signature".into()));
+        return Err(EdrError::ConfigError(
+            "invalid license format: expected payload.signature".into(),
+        ));
     }
 
-    let payload_bytes = engine.decode(parts[0])
+    let payload_bytes = engine
+        .decode(parts[0])
         .map_err(|e| EdrError::ConfigError(format!("invalid license base64 payload: {}", e)))?;
-    let sig_bytes = engine.decode(parts[1])
+    let sig_bytes = engine
+        .decode(parts[1])
         .map_err(|e| EdrError::ConfigError(format!("invalid license base64 signature: {}", e)))?;
 
     let pub_bytes = hex::decode(VENDOR_PUBLIC_KEY_HEX)
@@ -117,7 +122,8 @@ pub fn parse_license_file(content: &str) -> Result<LicenseBundle> {
     let sig = Signature::from_slice(&sig_bytes)
         .map_err(|e| EdrError::ConfigError(format!("invalid signature: {}", e)))?;
 
-    verifying_key.verify(&payload_bytes, &sig)
+    verifying_key
+        .verify(&payload_bytes, &sig)
         .map_err(|_| EdrError::ConfigError("license signature verification failed".into()))?;
 
     let payload_str = String::from_utf8(payload_bytes)
@@ -135,10 +141,7 @@ pub fn parse_license_file(content: &str) -> Result<LicenseBundle> {
 }
 
 pub fn find_license_file() -> Result<Option<LicenseBundle>> {
-    let paths = [
-        "configs/license.lic",
-        "../configs/license.lic",
-    ];
+    let paths = ["configs/license.lic", "../configs/license.lic"];
 
     for path in &paths {
         if let Ok(content) = std::fs::read_to_string(path) {

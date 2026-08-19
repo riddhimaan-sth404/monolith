@@ -1,16 +1,11 @@
-use axum::{
-    extract::State,
-    http::StatusCode,
-    Json,
-    Extension,
-};
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use std::sync::Arc;
+use crate::server::AppState;
+use axum::{Extension, Json, extract::State, http::StatusCode};
 use monolith_shared::auth::AuthContext;
 use monolith_shared::db::DbParam;
+use serde::{Deserialize, Serialize};
+use serde_json::{Value, json};
+use std::sync::Arc;
 use totp_rs::{Algorithm, Secret, TOTP};
-use crate::server::AppState;
 
 #[derive(Debug, Serialize)]
 pub struct EnrollResponse {
@@ -113,7 +108,9 @@ pub async fn confirm_mfa(
         .await;
 
     match result {
-        Ok(_) => Ok(Json(json!({"message": "MFA confirmed and enabled successfully"}))),
+        Ok(_) => Ok(Json(
+            json!({"message": "MFA confirmed and enabled successfully"}),
+        )),
         Err(e) => Err((
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({"error": format!("failed to save MFA settings: {}", e)})),

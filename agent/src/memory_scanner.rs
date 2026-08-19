@@ -1,12 +1,12 @@
 #![allow(unsafe_code)]
 #![allow(missing_docs)]
 
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64;
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use tracing::{debug, error, info, warn};
-use base64::Engine;
-use base64::engine::general_purpose::STANDARD as BASE64;
 
 use crate::config::AgentConfig;
 
@@ -49,8 +49,10 @@ pub struct MemoryRegion {
 
 #[cfg(windows)]
 pub fn get_process_name(pid: u32) -> String {
-    use windows_sys::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION, QueryFullProcessImageNameW};
     use windows_sys::Win32::Foundation::CloseHandle;
+    use windows_sys::Win32::System::Threading::{
+        OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION, QueryFullProcessImageNameW,
+    };
 
     let handle = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
     if handle.is_null() {
@@ -59,9 +61,7 @@ pub fn get_process_name(pid: u32) -> String {
 
     let mut buffer = [0u16; 512];
     let mut size = buffer.len() as u32;
-    let success = unsafe {
-        QueryFullProcessImageNameW(handle, 0, buffer.as_mut_ptr(), &mut size)
-    };
+    let success = unsafe { QueryFullProcessImageNameW(handle, 0, buffer.as_mut_ptr(), &mut size) };
 
     unsafe { CloseHandle(handle) };
 
@@ -82,17 +82,26 @@ pub fn get_process_name(pid: u32) -> String {
 }
 
 #[cfg(windows)]
-pub fn enumerate_suspicious_regions(pid: u32, config: &AgentConfig) -> Result<Vec<MemoryRegion>, String> {
-    use windows_sys::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION};
-    use windows_sys::Win32::System::Memory::{VirtualQueryEx, MEMORY_BASIC_INFORMATION};
-    use windows_sys::Win32::System::Memory::{MEM_COMMIT, MEM_PRIVATE, MEM_MAPPED};
-    use windows_sys::Win32::System::Memory::{PAGE_NOACCESS, PAGE_GUARD};
-    use windows_sys::Win32::System::Memory::{PAGE_EXECUTE_READWRITE, PAGE_EXECUTE_WRITECOPY, PAGE_EXECUTE_READ, PAGE_EXECUTE};
+pub fn enumerate_suspicious_regions(
+    pid: u32,
+    config: &AgentConfig,
+) -> Result<Vec<MemoryRegion>, String> {
     use windows_sys::Win32::Foundation::CloseHandle;
+    use windows_sys::Win32::System::Memory::{MEM_COMMIT, MEM_MAPPED, MEM_PRIVATE};
+    use windows_sys::Win32::System::Memory::{MEMORY_BASIC_INFORMATION, VirtualQueryEx};
+    use windows_sys::Win32::System::Memory::{
+        PAGE_EXECUTE, PAGE_EXECUTE_READ, PAGE_EXECUTE_READWRITE, PAGE_EXECUTE_WRITECOPY,
+    };
+    use windows_sys::Win32::System::Memory::{PAGE_GUARD, PAGE_NOACCESS};
+    use windows_sys::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION};
 
     let handle = unsafe { OpenProcess(PROCESS_QUERY_INFORMATION, 0, pid) };
     if handle.is_null() {
-        return Err(format!("Failed to open process {} for query: {}", pid, std::io::Error::last_os_error()));
+        return Err(format!(
+            "Failed to open process {} for query: {}",
+            pid,
+            std::io::Error::last_os_error()
+        ));
     }
 
     let mut regions = Vec::new();
@@ -113,11 +122,14 @@ pub fn enumerate_suspicious_regions(pid: u32, config: &AgentConfig) -> Result<Ve
             // Suspicious page characteristics:
             // 1. Executable-Read-Write (PAGE_EXECUTE_READWRITE or PAGE_EXECUTE_WRITECOPY)
             // 2. Private executable pages (MEM_PRIVATE + PAGE_EXECUTE_READ / PAGE_EXECUTE) - classic hollowed / injected payload code path
-            let is_rwx = (protect & PAGE_EXECUTE_READWRITE) != 0 || (protect & PAGE_EXECUTE_WRITECOPY) != 0;
-            let is_private_exec = type_ == MEM_PRIVATE && ((protect & PAGE_EXECUTE_READ) != 0 || (protect & PAGE_EXECUTE) != 0);
-            
+            let is_rwx =
+                (protect & PAGE_EXECUTE_READWRITE) != 0 || (protect & PAGE_EXECUTE_WRITECOPY) != 0;
+            let is_private_exec = type_ == MEM_PRIVATE
+                && ((protect & PAGE_EXECUTE_READ) != 0 || (protect & PAGE_EXECUTE) != 0);
+
             // Or unbacked mapped code (MEM_MAPPED executable)
-            let is_mapped_exec = type_ == MEM_MAPPED && ((protect & PAGE_EXECUTE_READ) != 0 || (protect & PAGE_EXECUTE_READWRITE) != 0);
+            let is_mapped_exec = type_ == MEM_MAPPED
+                && ((protect & PAGE_EXECUTE_READ) != 0 || (protect & PAGE_EXECUTE_READWRITE) != 0);
 
             if (is_rwx || is_private_exec || is_mapped_exec) && size <= max_size {
                 regions.push(MemoryRegion {
@@ -138,15 +150,18 @@ pub fn enumerate_suspicious_regions(pid: u32, config: &AgentConfig) -> Result<Ve
 }
 
 #[cfg(not(windows))]
-pub fn enumerate_suspicious_regions(_pid: u32, _config: &AgentConfig) -> Result<Vec<MemoryRegion>, String> {
+pub fn enumerate_suspicious_regions(
+    _pid: u32,
+    _config: &AgentConfig,
+) -> Result<Vec<MemoryRegion>, String> {
     Ok(Vec::new())
 }
 
 #[cfg(windows)]
 pub fn read_region(pid: u32, region: &MemoryRegion) -> Option<Vec<u8>> {
-    use windows_sys::Win32::System::Threading::{OpenProcess, PROCESS_VM_READ};
-    use windows_sys::Win32::System::Diagnostics::Debug::ReadProcessMemory;
     use windows_sys::Win32::Foundation::CloseHandle;
+    use windows_sys::Win32::System::Diagnostics::Debug::ReadProcessMemory;
+    use windows_sys::Win32::System::Threading::{OpenProcess, PROCESS_VM_READ};
 
     let handle = unsafe { OpenProcess(PROCESS_VM_READ, 0, pid) };
     if handle.is_null() {
@@ -155,14 +170,14 @@ pub fn read_region(pid: u32, region: &MemoryRegion) -> Option<Vec<u8>> {
 
     let mut buffer = vec![0u8; region.region_size as usize];
     let mut bytes_read = 0;
-    
+
     let success = unsafe {
         ReadProcessMemory(
             handle,
             region.base_address as *const _,
             buffer.as_mut_ptr() as *mut _,
             region.region_size as usize,
-            &mut bytes_read
+            &mut bytes_read,
         )
     };
 
@@ -203,12 +218,20 @@ pub async fn scan_process(pid: u32, config: &AgentConfig) -> Vec<MemoryScanResul
     let process_name = get_process_name(pid);
 
     // Skip excluded process names
-    if config.memory_scanner.excluded_process_names.iter().any(|name| name.eq_ignore_ascii_case(&process_name)) {
+    if config
+        .memory_scanner
+        .excluded_process_names
+        .iter()
+        .any(|name| name.eq_ignore_ascii_case(&process_name))
+    {
         debug!("Skip memory scan for excluded process: {}", process_name);
         return Vec::new();
     }
 
-    info!("Starting memory scan for process {} (PID {})", process_name, pid);
+    info!(
+        "Starting memory scan for process {} (PID {})",
+        process_name, pid
+    );
 
     let regions = match enumerate_suspicious_regions(pid, config) {
         Ok(r) => r,
@@ -223,7 +246,11 @@ pub async fn scan_process(pid: u32, config: &AgentConfig) -> Vec<MemoryScanResul
         return Vec::new();
     }
 
-    debug!("Found {} suspicious memory regions in PID {}", regions.len(), pid);
+    debug!(
+        "Found {} suspicious memory regions in PID {}",
+        regions.len(),
+        pid
+    );
     let mut results = Vec::new();
 
     let client = reqwest::Client::new();
@@ -241,7 +268,8 @@ pub async fn scan_process(pid: u32, config: &AgentConfig) -> Vec<MemoryScanResul
                 data: base64_data,
             };
 
-            match client.post(&scan_url)
+            match client
+                .post(&scan_url)
                 .json(&req_body)
                 .timeout(Duration::from_secs(5))
                 .send()
@@ -255,11 +283,18 @@ pub async fn scan_process(pid: u32, config: &AgentConfig) -> Vec<MemoryScanResul
                             }
                         }
                     } else {
-                        warn!("Scanner returned status {} for memory scan of PID {}", resp.status(), pid);
+                        warn!(
+                            "Scanner returned status {} for memory scan of PID {}",
+                            resp.status(),
+                            pid
+                        );
                     }
                 }
                 Err(e) => {
-                    error!("Failed to send memory scan request to scanner for PID {}: {}", pid, e);
+                    error!(
+                        "Failed to send memory scan request to scanner for PID {}: {}",
+                        pid, e
+                    );
                 }
             }
         }

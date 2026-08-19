@@ -1,11 +1,8 @@
-use axum::{
-    extract::State,
-    Json,
-};
+use axum::{Json, extract::State};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use std::sync::atomic::Ordering;
+use serde_json::{Value, json};
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use uuid::Uuid;
 
 use crate::server::AppState;
@@ -29,7 +26,11 @@ pub async fn report(
     let alert_id_clone = alert_id.clone();
     let rule_id = format!("scanner:{}", alert.verdict);
     let title = format!("Scanner detected: {} ({})", alert.file_path, alert.verdict);
-    let severity = if alert.verdict == "malicious" { "critical" } else { "high" };
+    let severity = if alert.verdict == "malicious" {
+        "critical"
+    } else {
+        "high"
+    };
 
     // Ensure the 'local' endpoint exists to satisfy the FK constraint
     let _ = state.db.execute(
@@ -57,7 +58,10 @@ pub async fn report(
         )
     })?;
 
-    state.metrics.alerts_generated.fetch_add(1, Ordering::Relaxed);
+    state
+        .metrics
+        .alerts_generated
+        .fetch_add(1, Ordering::Relaxed);
 
     // Fire desktop notification (non-blocking)
     if alert.verdict == "malicious" || alert.verdict == "suspicious" {
@@ -67,7 +71,8 @@ pub async fn report(
             state.toast_script_path.clone(),
             &notif_title,
             &notif_msg,
-        ).await;
+        )
+        .await;
     }
 
     Ok(Json(json!({"received": true, "alert_id": alert_id_clone})))

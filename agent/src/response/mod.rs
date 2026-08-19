@@ -2,9 +2,9 @@
 #![allow(missing_docs)]
 
 use monolith_shared::error::Result;
-use std::path::PathBuf;
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
+use std::path::PathBuf;
 
 pub struct ResponseHandler;
 
@@ -13,7 +13,11 @@ impl ResponseHandler {
         Self
     }
 
-    pub async fn execute_action(&self, action_type: &str, params: &serde_json::Value) -> Result<ActionResponse> {
+    pub async fn execute_action(
+        &self,
+        action_type: &str,
+        params: &serde_json::Value,
+    ) -> Result<ActionResponse> {
         tracing::info!("executing response action: {}", action_type);
 
         match action_type {
@@ -31,27 +35,34 @@ impl ResponseHandler {
             "update_policy" => self.update_policy(params).await,
             "scan_process_memory" => self.scan_process_memory(params).await,
             "shred_file" => self.shred_file(params).await,
-            _ => Err(monolith_shared::error::EdrError::InvalidInput(
-                format!("unknown action type: {}", action_type),
-            )),
+            _ => Err(monolith_shared::error::EdrError::InvalidInput(format!(
+                "unknown action type: {}",
+                action_type
+            ))),
         }
     }
 
     async fn terminate_process(&self, params: &serde_json::Value) -> Result<ActionResponse> {
-        let pid = params.get("pid").and_then(|v| v.as_u64())
-            .ok_or_else(|| monolith_shared::error::EdrError::ValidationError("pid required".into()))?;
+        let pid = params.get("pid").and_then(|v| v.as_u64()).ok_or_else(|| {
+            monolith_shared::error::EdrError::ValidationError("pid required".into())
+        })?;
 
         #[cfg(windows)]
         {
-            use windows_sys::Win32::System::Threading::{OpenProcess, TerminateProcess, PROCESS_TERMINATE};
             use windows_sys::Win32::Foundation::{CloseHandle, FALSE};
+            use windows_sys::Win32::System::Threading::{
+                OpenProcess, PROCESS_TERMINATE, TerminateProcess,
+            };
 
             unsafe {
                 let handle = OpenProcess(PROCESS_TERMINATE, FALSE, pid as u32);
                 if handle.is_null() {
                     return Ok(ActionResponse {
                         success: false,
-                        message: format!("failed to open process {} (access denied or not found)", pid),
+                        message: format!(
+                            "failed to open process {} (access denied or not found)",
+                            pid
+                        ),
                     });
                 }
                 let result = TerminateProcess(handle, 1);
@@ -72,12 +83,13 @@ impl ResponseHandler {
     }
 
     async fn quarantine_file(&self, params: &serde_json::Value) -> Result<ActionResponse> {
-        let path = params.get("path").and_then(|v| v.as_str())
-            .ok_or_else(|| monolith_shared::error::EdrError::ValidationError("path required".into()))?;
+        let path = params.get("path").and_then(|v| v.as_str()).ok_or_else(|| {
+            monolith_shared::error::EdrError::ValidationError("path required".into())
+        })?;
 
         #[cfg(windows)]
         {
-            use windows_sys::Win32::Storage::FileSystem::{MoveFileExW, MOVEFILE_REPLACE_EXISTING};
+            use windows_sys::Win32::Storage::FileSystem::{MOVEFILE_REPLACE_EXISTING, MoveFileExW};
 
             let src_path = std::path::Path::new(path);
             let quarantine_dir = get_quarantine_dir();
@@ -88,10 +100,18 @@ impl ResponseHandler {
             let dest_str = dest.to_string_lossy();
 
             let src_wide: Vec<u16> = OsStr::new(path).encode_wide().chain([0]).collect();
-            let dest_wide: Vec<u16> = OsStr::new(dest_str.as_ref()).encode_wide().chain([0]).collect();
+            let dest_wide: Vec<u16> = OsStr::new(dest_str.as_ref())
+                .encode_wide()
+                .chain([0])
+                .collect();
 
             unsafe {
-                if MoveFileExW(src_wide.as_ptr(), dest_wide.as_ptr(), MOVEFILE_REPLACE_EXISTING) == 0 {
+                if MoveFileExW(
+                    src_wide.as_ptr(),
+                    dest_wide.as_ptr(),
+                    MOVEFILE_REPLACE_EXISTING,
+                ) == 0
+                {
                     return Ok(ActionResponse {
                         success: false,
                         message: format!("failed to move file to quarantine: {}", path),
@@ -135,8 +155,12 @@ impl ResponseHandler {
     }
 
     async fn restore_quarantine(&self, params: &serde_json::Value) -> Result<ActionResponse> {
-        let quarantine_id_raw = params.get("quarantine_id").and_then(|v| v.as_str())
-            .ok_or_else(|| monolith_shared::error::EdrError::ValidationError("quarantine_id required".into()))?;
+        let quarantine_id_raw = params
+            .get("quarantine_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                monolith_shared::error::EdrError::ValidationError("quarantine_id required".into())
+            })?;
         let quarantine_id = Self::sanitize_quarantine_id(quarantine_id_raw)?;
 
         #[cfg(windows)]
@@ -159,10 +183,15 @@ impl ResponseHandler {
                 String::new()
             };
 
-            let original_path_parsed: String = serde_json::from_str::<serde_json::Value>(&original_path)
-                .ok()
-                .and_then(|v| v.get("original_path").and_then(|s| s.as_str()).map(String::from))
-                .unwrap_or_default();
+            let original_path_parsed: String =
+                serde_json::from_str::<serde_json::Value>(&original_path)
+                    .ok()
+                    .and_then(|v| {
+                        v.get("original_path")
+                            .and_then(|s| s.as_str())
+                            .map(String::from)
+                    })
+                    .unwrap_or_default();
 
             let dest = if original_path_parsed.is_empty() {
                 quarantine_dir.join(format!("restored_{}", quarantine_id))
@@ -170,14 +199,23 @@ impl ResponseHandler {
                 PathBuf::from(&original_path_parsed)
             };
 
-            let src_wide: Vec<u16> = OsStr::new(&src.to_string_lossy().as_ref()).encode_wide().chain([0]).collect();
-            let dest_wide: Vec<u16> = OsStr::new(&dest.to_string_lossy().as_ref()).encode_wide().chain([0]).collect();
+            let src_wide: Vec<u16> = OsStr::new(&src.to_string_lossy().as_ref())
+                .encode_wide()
+                .chain([0])
+                .collect();
+            let dest_wide: Vec<u16> = OsStr::new(&dest.to_string_lossy().as_ref())
+                .encode_wide()
+                .chain([0])
+                .collect();
 
             unsafe {
                 if MoveFileExW(src_wide.as_ptr(), dest_wide.as_ptr(), 0) == 0 {
                     return Ok(ActionResponse {
                         success: false,
-                        message: format!("failed to restore file from quarantine: {}", quarantine_id),
+                        message: format!(
+                            "failed to restore file from quarantine: {}",
+                            quarantine_id
+                        ),
                     });
                 }
             }
@@ -196,8 +234,12 @@ impl ResponseHandler {
     }
 
     async fn delete_quarantine(&self, params: &serde_json::Value) -> Result<ActionResponse> {
-        let quarantine_id_raw = params.get("quarantine_id").and_then(|v| v.as_str())
-            .ok_or_else(|| monolith_shared::error::EdrError::ValidationError("quarantine_id required".into()))?;
+        let quarantine_id_raw = params
+            .get("quarantine_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                monolith_shared::error::EdrError::ValidationError("quarantine_id required".into())
+            })?;
         let quarantine_id = Self::sanitize_quarantine_id(quarantine_id_raw)?;
 
         let quarantine_dir = get_quarantine_dir();
@@ -224,7 +266,10 @@ impl ResponseHandler {
             // Block all outbound traffic via Windows Firewall
             let add = Command::new("netsh")
                 .args([
-                    "advfirewall", "firewall", "add", "rule",
+                    "advfirewall",
+                    "firewall",
+                    "add",
+                    "rule",
                     "name=EDR_Isolation",
                     "dir=out",
                     "action=block",
@@ -269,7 +314,13 @@ impl ResponseHandler {
             use std::process::Command;
 
             let delete = Command::new("netsh")
-                .args(["advfirewall", "firewall", "delete", "rule", "name=EDR_Isolation"])
+                .args([
+                    "advfirewall",
+                    "firewall",
+                    "delete",
+                    "rule",
+                    "name=EDR_Isolation",
+                ])
                 .output();
 
             match delete {
@@ -299,16 +350,12 @@ impl ResponseHandler {
                 use std::process::Command;
 
                 // Try to restart via SC first, fallback to direct exec
-                let result = Command::new("sc")
-                    .args(["stop", "MonolithAgent"])
-                    .output();
+                let result = Command::new("sc").args(["stop", "MonolithAgent"]).output();
                 if let Ok(o) = result {
                     tracing::info!("sc stop output: {}", String::from_utf8_lossy(&o.stdout));
                 }
                 tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
-                let result = Command::new("sc")
-                    .args(["start", "MonolithAgent"])
-                    .output();
+                let result = Command::new("sc").args(["start", "MonolithAgent"]).output();
                 if let Ok(o) = result {
                     tracing::info!("sc start output: {}", String::from_utf8_lossy(&o.stdout));
                 }
@@ -351,7 +398,8 @@ impl ResponseHandler {
         let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
 
         // Collect agent logs
-        let program_data = std::env::var("ProgramData").unwrap_or_else(|_| "C:\\ProgramData".into());
+        let program_data =
+            std::env::var("ProgramData").unwrap_or_else(|_| "C:\\ProgramData".into());
         let log_dir = std::path::Path::new(&program_data).join("EDR").join("logs");
         if log_dir.exists() {
             let dest = output_dir.join(format!("logs_{}", timestamp));
@@ -360,12 +408,20 @@ impl ResponseHandler {
 
         // Collect config
         let config_paths = [
-            std::path::Path::new(&program_data).join("EDR").join("config.toml"),
-            std::path::Path::new(&program_data).join("EDR").join("config.yaml"),
+            std::path::Path::new(&program_data)
+                .join("EDR")
+                .join("config.toml"),
+            std::path::Path::new(&program_data)
+                .join("EDR")
+                .join("config.yaml"),
         ];
         for cfg_path in &config_paths {
             if cfg_path.exists() {
-                let fname = cfg_path.file_name().unwrap_or_default().to_string_lossy().to_string();
+                let fname = cfg_path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string();
                 let dest = output_dir.join(format!("config_{}", fname));
                 let _ = std::fs::copy(cfg_path, &dest);
             }
@@ -384,11 +440,18 @@ impl ResponseHandler {
     }
 
     async fn update_policy(&self, params: &serde_json::Value) -> Result<ActionResponse> {
-        let policy_content = params.get("policy").and_then(|v| v.as_str())
-            .ok_or_else(|| monolith_shared::error::EdrError::ValidationError("policy content required".into()))?;
+        let policy_content = params
+            .get("policy")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| {
+                monolith_shared::error::EdrError::ValidationError("policy content required".into())
+            })?;
 
-        let program_data = std::env::var("ProgramData").unwrap_or_else(|_| "C:\\ProgramData".into());
-        let policy_path = std::path::Path::new(&program_data).join("EDR").join("policy.json");
+        let program_data =
+            std::env::var("ProgramData").unwrap_or_else(|_| "C:\\ProgramData".into());
+        let policy_path = std::path::Path::new(&program_data)
+            .join("EDR")
+            .join("policy.json");
         let parent = policy_path.parent().unwrap();
         let _ = std::fs::create_dir_all(parent);
         let _ = std::fs::write(&policy_path, policy_content);
@@ -402,9 +465,13 @@ impl ResponseHandler {
     }
 
     async fn run_sandbox(&self, params: &serde_json::Value) -> Result<ActionResponse> {
-        let path = params.get("path").and_then(|v| v.as_str())
-            .ok_or_else(|| monolith_shared::error::EdrError::ValidationError("path required".into()))?;
-        let timeout_ms = params.get("timeout_ms").and_then(|v| v.as_u64()).unwrap_or(30000);
+        let path = params.get("path").and_then(|v| v.as_str()).ok_or_else(|| {
+            monolith_shared::error::EdrError::ValidationError("path required".into())
+        })?;
+        let timeout_ms = params
+            .get("timeout_ms")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(30000);
 
         tracing::info!("running sandbox on: {}", path);
 
@@ -427,17 +494,27 @@ impl ResponseHandler {
         let report = monitor.run();
         let report_json = serde_json::to_string(&report).unwrap_or_default();
 
-        tracing::info!("sandbox result: score={} verdict={}", report.score(), report.verdict());
+        tracing::info!(
+            "sandbox result: score={} verdict={}",
+            report.score(),
+            report.verdict()
+        );
 
         Ok(ActionResponse {
             success: true,
-            message: format!("sandbox completed: score={} verdict={} report={}", report.score(), report.verdict(), report_json),
+            message: format!(
+                "sandbox completed: score={} verdict={} report={}",
+                report.score(),
+                report.verdict(),
+                report_json
+            ),
         })
     }
 
     async fn scan_process_memory(&self, params: &serde_json::Value) -> Result<ActionResponse> {
-        let pid = params.get("pid").and_then(|v| v.as_u64())
-            .ok_or_else(|| monolith_shared::error::EdrError::ValidationError("pid required".into()))?;
+        let pid = params.get("pid").and_then(|v| v.as_u64()).ok_or_else(|| {
+            monolith_shared::error::EdrError::ValidationError("pid required".into())
+        })?;
 
         let driver = super::driver::DriverCommunicator::new("\\\\.\\EDR", 65536);
         let handle = driver.open_device()?;
@@ -445,13 +522,17 @@ impl ResponseHandler {
 
         Ok(ActionResponse {
             success: true,
-            message: format!("memory scan initiated for PID {} ({} suspicious regions found)", pid, count),
+            message: format!(
+                "memory scan initiated for PID {} ({} suspicious regions found)",
+                pid, count
+            ),
         })
     }
 
     async fn shred_file(&self, params: &serde_json::Value) -> Result<ActionResponse> {
-        let path = params.get("path").and_then(|v| v.as_str())
-            .ok_or_else(|| monolith_shared::error::EdrError::ValidationError("path required".into()))?;
+        let path = params.get("path").and_then(|v| v.as_str()).ok_or_else(|| {
+            monolith_shared::error::EdrError::ValidationError("path required".into())
+        })?;
 
         let passes = params.get("passes").and_then(|v| v.as_u64()).unwrap_or(3);
         let path = std::path::Path::new(path);
@@ -472,10 +553,12 @@ impl ResponseHandler {
 
         let file_size = match std::fs::metadata(path) {
             Ok(m) => m.len(),
-            Err(e) => return Ok(ActionResponse {
-                success: false,
-                message: format!("failed to get file metadata: {}", e),
-            }),
+            Err(e) => {
+                return Ok(ActionResponse {
+                    success: false,
+                    message: format!("failed to get file metadata: {}", e),
+                });
+            }
         };
 
         if file_size == 0 {
@@ -511,13 +594,22 @@ impl ResponseHandler {
 
         Ok(ActionResponse {
             success: true,
-            message: format!("file shredded ({} passes, {} bytes): {}", passes, file_size, path.display()),
+            message: format!(
+                "file shredded ({} passes, {} bytes): {}",
+                passes,
+                file_size,
+                path.display()
+            ),
         })
     }
 }
 
-fn overwrite_pass(path: &std::path::Path, pass: u64, file_size: u64) -> std::result::Result<(), Box<dyn std::error::Error>> {
-    use std::io::{Write, Seek, SeekFrom};
+fn overwrite_pass(
+    path: &std::path::Path,
+    pass: u64,
+    file_size: u64,
+) -> std::result::Result<(), Box<dyn std::error::Error>> {
+    use std::io::{Seek, SeekFrom, Write};
 
     let mut file = std::fs::OpenOptions::new()
         .write(true)
@@ -567,7 +659,9 @@ fn overwrite_pass(path: &std::path::Path, pass: u64, file_size: u64) -> std::res
 
 fn get_quarantine_dir() -> PathBuf {
     let program_data = std::env::var("ProgramData").unwrap_or_else(|_| "C:\\ProgramData".into());
-    std::path::Path::new(&program_data).join("EDR").join("Quarantine")
+    std::path::Path::new(&program_data)
+        .join("EDR")
+        .join("Quarantine")
 }
 
 fn get_diagnostics_dir() -> PathBuf {

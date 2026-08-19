@@ -1,9 +1,9 @@
 use axum::{
-    extract::{State, Path, Query},
     Extension, Json,
+    extract::{Path, Query, State},
 };
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -60,10 +60,12 @@ pub async fn list(
             &params,
         )
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": format!("database error: {}", e)})),
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": format!("database error: {}", e)})),
+            )
+        })?;
 
     Ok(Json(json!({"scans": scans})))
 }
@@ -85,13 +87,19 @@ pub async fn trigger(
     let endpoint_id = req.endpoint_id.unwrap_or_else(|| "localhost".to_string());
     tracing::info!("triggering scan {} for endpoint {}", scan_id, endpoint_id);
 
-    let existing = state.db.query_raw(
-        "SELECT id FROM endpoints WHERE id = ?1",
-        &[DbParam::Text(endpoint_id.clone())],
-    ).await.map_err(|e| (
-        axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-        Json(json!({"error": format!("database error: {}", e)})),
-    ))?;
+    let existing = state
+        .db
+        .query_raw(
+            "SELECT id FROM endpoints WHERE id = ?1",
+            &[DbParam::Text(endpoint_id.clone())],
+        )
+        .await
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": format!("database error: {}", e)})),
+            )
+        })?;
 
     if existing.is_empty() {
         state.db.execute(
@@ -138,10 +146,13 @@ pub async fn trigger(
     tokio::spawn(async move {
         tracing::info!("scan {}: background task started", sid);
 
-        let _ = app_state.db.execute(
-            "UPDATE scan_results SET status = 'running' WHERE id = ?1",
-            &[DbParam::Text(sid.clone())],
-        ).await;
+        let _ = app_state
+            .db
+            .execute(
+                "UPDATE scan_results SET status = 'running' WHERE id = ?1",
+                &[DbParam::Text(sid.clone())],
+            )
+            .await;
 
         let scanner = ScannerClient::new("127.0.0.1:50053");
         let use_scanner = scanner.get_status().await.is_ok();
@@ -164,14 +175,21 @@ pub async fn trigger(
                 tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
                 // Check if the scan has been cancelled in the database
-                if let Ok(rows) = app_state.db.query_value(
-                    "SELECT status FROM scan_results WHERE id = ?1",
-                    &[DbParam::Text(sid.clone())],
-                ).await {
+                if let Ok(rows) = app_state
+                    .db
+                    .query_value(
+                        "SELECT status FROM scan_results WHERE id = ?1",
+                        &[DbParam::Text(sid.clone())],
+                    )
+                    .await
+                {
                     if let Some(row) = rows.into_iter().next() {
                         if let Some(status) = row.get("status").and_then(|v| v.as_str()) {
                             if status == "cancelled" {
-                                tracing::info!("scan {}: cancel detected in database, stopping polling", sid);
+                                tracing::info!(
+                                    "scan {}: cancel detected in database, stopping polling",
+                                    sid
+                                );
                                 return;
                             }
                         }
@@ -230,10 +248,19 @@ pub async fn trigger(
                         break;
                     }
                     Ok(_) => {
-                        tracing::warn!("scan {}: empty results on attempt {}, retrying...", sid, attempt + 1);
+                        tracing::warn!(
+                            "scan {}: empty results on attempt {}, retrying...",
+                            sid,
+                            attempt + 1
+                        );
                     }
                     Err(e) => {
-                        tracing::error!("scan {}: failed to fetch results (attempt {}): {}", sid, attempt + 1, e);
+                        tracing::error!(
+                            "scan {}: failed to fetch results (attempt {}): {}",
+                            sid,
+                            attempt + 1,
+                            e
+                        );
                     }
                 }
                 tokio::time::sleep(std::time::Duration::from_millis(500)).await;
@@ -244,7 +271,10 @@ pub async fn trigger(
             let malicious = results.iter().filter(|r| r.verdict == "malicious").count() as i64;
 
             if total == 0 {
-                tracing::warn!("scan {}: got 0 results from scanner after 3 attempts; report will be empty", sid);
+                tracing::warn!(
+                    "scan {}: got 0 results from scanner after 3 attempts; report will be empty",
+                    sid
+                );
             }
 
             let details = json!({
@@ -293,10 +323,12 @@ pub async fn get(
             &[DbParam::Text(id)],
         )
         .await
-        .map_err(|e| (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": format!("database error: {}", e)})),
-        ))?;
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": format!("database error: {}", e)})),
+            )
+        })?;
 
     let scan = scans.into_iter().next().ok_or_else(|| {
         (

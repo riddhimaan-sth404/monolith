@@ -1,8 +1,8 @@
+use crate::config::DatabaseConfig;
+use crate::error::Result;
 use async_trait::async_trait;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
-use crate::error::Result;
-use crate::config::DatabaseConfig;
 
 /// Database parameter types for cross-database compatibility.
 #[derive(Debug, Clone)]
@@ -16,23 +16,33 @@ pub enum DbParam {
 }
 
 impl From<i64> for DbParam {
-    fn from(v: i64) -> Self { DbParam::Integer(v) }
+    fn from(v: i64) -> Self {
+        DbParam::Integer(v)
+    }
 }
 
 impl From<f64> for DbParam {
-    fn from(v: f64) -> Self { DbParam::Real(v) }
+    fn from(v: f64) -> Self {
+        DbParam::Real(v)
+    }
 }
 
 impl From<String> for DbParam {
-    fn from(v: String) -> Self { DbParam::Text(v) }
+    fn from(v: String) -> Self {
+        DbParam::Text(v)
+    }
 }
 
 impl From<&str> for DbParam {
-    fn from(v: &str) -> Self { DbParam::Text(v.to_string()) }
+    fn from(v: &str) -> Self {
+        DbParam::Text(v.to_string())
+    }
 }
 
 impl From<Vec<u8>> for DbParam {
-    fn from(v: Vec<u8>) -> Self { DbParam::Blob(v) }
+    fn from(v: Vec<u8>) -> Self {
+        DbParam::Blob(v)
+    }
 }
 
 /// Generic database connection trait.
@@ -40,10 +50,18 @@ impl From<Vec<u8>> for DbParam {
 pub trait DatabaseConnection: Send + Sync {
     async fn execute(&self, sql: &str, params: &[DbParam]) -> Result<u64>;
     async fn execute_batch(&self, sql: &str) -> Result<()>;
-    async fn query<T: DeserializeOwned + Send>(&self, sql: &str, params: &[DbParam]) -> Result<Vec<T>>
+    async fn query<T: DeserializeOwned + Send>(
+        &self,
+        sql: &str,
+        params: &[DbParam],
+    ) -> Result<Vec<T>>
     where
         Self: Sized;
-    async fn query_one<T: DeserializeOwned + Send>(&self, sql: &str, params: &[DbParam]) -> Result<Option<T>>
+    async fn query_one<T: DeserializeOwned + Send>(
+        &self,
+        sql: &str,
+        params: &[DbParam],
+    ) -> Result<Option<T>>
     where
         Self: Sized;
     async fn query_value(&self, sql: &str, params: &[DbParam]) -> Result<Vec<Value>>;
@@ -89,23 +107,55 @@ mod tests {
 
     #[async_trait]
     impl DatabaseConnection for MockConn {
-        async fn execute(&self, _sql: &str, _params: &[DbParam]) -> Result<u64> { Ok(1) }
-        async fn execute_batch(&self, _sql: &str) -> Result<()> { Ok(()) }
-        async fn query<T: DeserializeOwned + Send>(&self, _sql: &str, _params: &[DbParam]) -> Result<Vec<T>> { Ok(vec![]) }
-        async fn query_one<T: DeserializeOwned + Send>(&self, _sql: &str, _params: &[DbParam]) -> Result<Option<T>> { Ok(None) }
-        async fn query_value(&self, _sql: &str, _params: &[DbParam]) -> Result<Vec<Value>> { Ok(vec![]) }
-        async fn query_one_value(&self, _sql: &str, _params: &[DbParam]) -> Result<Option<Value>> { Ok(None) }
-        async fn query_raw(&self, _sql: &str, _params: &[DbParam]) -> Result<Vec<Vec<Value>>> { Ok(vec![]) }
-        async fn last_insert_rowid(&self) -> Result<i64> { Ok(1) }
-        async fn begin_transaction(&self) -> Result<Box<dyn Transaction>> { Ok(Box::new(MockTx)) }
+        async fn execute(&self, _sql: &str, _params: &[DbParam]) -> Result<u64> {
+            Ok(1)
+        }
+        async fn execute_batch(&self, _sql: &str) -> Result<()> {
+            Ok(())
+        }
+        async fn query<T: DeserializeOwned + Send>(
+            &self,
+            _sql: &str,
+            _params: &[DbParam],
+        ) -> Result<Vec<T>> {
+            Ok(vec![])
+        }
+        async fn query_one<T: DeserializeOwned + Send>(
+            &self,
+            _sql: &str,
+            _params: &[DbParam],
+        ) -> Result<Option<T>> {
+            Ok(None)
+        }
+        async fn query_value(&self, _sql: &str, _params: &[DbParam]) -> Result<Vec<Value>> {
+            Ok(vec![])
+        }
+        async fn query_one_value(&self, _sql: &str, _params: &[DbParam]) -> Result<Option<Value>> {
+            Ok(None)
+        }
+        async fn query_raw(&self, _sql: &str, _params: &[DbParam]) -> Result<Vec<Vec<Value>>> {
+            Ok(vec![])
+        }
+        async fn last_insert_rowid(&self) -> Result<i64> {
+            Ok(1)
+        }
+        async fn begin_transaction(&self) -> Result<Box<dyn Transaction>> {
+            Ok(Box::new(MockTx))
+        }
     }
 
     struct MockTx;
     #[async_trait]
     impl Transaction for MockTx {
-        async fn commit(self: Box<Self>) -> Result<()> { Ok(()) }
-        async fn rollback(self: Box<Self>) -> Result<()> { Ok(()) }
-        async fn execute(&self, _sql: &str, _params: &[DbParam]) -> Result<u64> { Ok(1) }
+        async fn commit(self: Box<Self>) -> Result<()> {
+            Ok(())
+        }
+        async fn rollback(self: Box<Self>) -> Result<()> {
+            Ok(())
+        }
+        async fn execute(&self, _sql: &str, _params: &[DbParam]) -> Result<u64> {
+            Ok(1)
+        }
     }
 
     #[tokio::test]

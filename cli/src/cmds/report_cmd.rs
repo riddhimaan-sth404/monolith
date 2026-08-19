@@ -38,7 +38,11 @@ pub struct DownloadArgs {
     pub output: Option<String>,
 }
 
-pub async fn execute(client: &MonolithClient, cmd: &ReportCommand, global_output: &str) -> anyhow::Result<()> {
+pub async fn execute(
+    client: &MonolithClient,
+    cmd: &ReportCommand,
+    global_output: &str,
+) -> anyhow::Result<()> {
     match cmd {
         ReportCommand::List(args) => list(client, args, global_output).await,
         ReportCommand::Generate(args) => generate(client, args).await,
@@ -48,7 +52,9 @@ pub async fn execute(client: &MonolithClient, cmd: &ReportCommand, global_output
 
 async fn list(client: &MonolithClient, args: &ListArgs, global_output: &str) -> anyhow::Result<()> {
     let fmt = OutputFormat::from(args.output.as_deref().unwrap_or(global_output));
-    let v = client.get_raw(&format!("/api/v1/reports?limit={}", args.limit)).await?;
+    let v = client
+        .get_raw(&format!("/api/v1/reports?limit={}", args.limit))
+        .await?;
     let items = v.as_array().cloned().unwrap_or_default();
     let rows: Vec<Vec<String>> = items
         .iter()

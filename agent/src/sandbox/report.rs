@@ -36,7 +36,11 @@ impl SandboxReport {
     }
 
     pub fn record_exit(&mut self, pid: u32, name: String, exit_code: i32) {
-        self.exits.push(ProcessExit { pid, name, exit_code });
+        self.exits.push(ProcessExit {
+            pid,
+            name,
+            exit_code,
+        });
         self.process_count = self.exits.len();
     }
 
@@ -59,22 +63,42 @@ impl SandboxReport {
     pub fn score(&self) -> f64 {
         let mut score = 0.0f64;
         for indicator in &self.suspicious_indicators {
-            if indicator.contains("create_process") { score += 0.3; }
-            if indicator.contains("modify_file") { score += 0.2; }
-            if indicator.contains("network") { score += 0.3; }
-            if indicator.contains("registry") { score += 0.2; }
-            if indicator.contains("injection") { score += 0.5; }
-            if indicator.contains("persistence") { score += 0.4; }
+            if indicator.contains("create_process") {
+                score += 0.3;
+            }
+            if indicator.contains("modify_file") {
+                score += 0.2;
+            }
+            if indicator.contains("network") {
+                score += 0.3;
+            }
+            if indicator.contains("registry") {
+                score += 0.2;
+            }
+            if indicator.contains("injection") {
+                score += 0.5;
+            }
+            if indicator.contains("persistence") {
+                score += 0.4;
+            }
         }
-        if self.timed_out { score += 0.1; }
-        if self.exits.iter().any(|e| e.exit_code != 0) { score += 0.1; }
+        if self.timed_out {
+            score += 0.1;
+        }
+        if self.exits.iter().any(|e| e.exit_code != 0) {
+            score += 0.1;
+        }
         score.min(1.0)
     }
 
     pub fn verdict(&self) -> &str {
         let s = self.score();
-        if s >= 0.7 { "malicious" }
-        else if s >= 0.3 { "suspicious" }
-        else { "clean" }
+        if s >= 0.7 {
+            "malicious"
+        } else if s >= 0.3 {
+            "suspicious"
+        } else {
+            "clean"
+        }
     }
 }

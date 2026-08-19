@@ -4,7 +4,7 @@ use crate::config::Config;
 use crate::output;
 use anyhow::bail;
 use clap::Args;
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 
 #[derive(Args)]
 pub struct SelfArgs {
@@ -95,12 +95,14 @@ async fn activate(args: &ActivateArgs) -> anyhow::Result<()> {
 fn get_machine_fingerprint() -> anyhow::Result<String> {
     #[cfg(windows)]
     {
-        use winreg::enums::HKEY_LOCAL_MACHINE;
         use winreg::RegKey;
+        use winreg::enums::HKEY_LOCAL_MACHINE;
         let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
-        let key = hklm.open_subkey(r"SOFTWARE\Microsoft\Cryptography")
+        let key = hklm
+            .open_subkey(r"SOFTWARE\Microsoft\Cryptography")
             .map_err(|e| anyhow::anyhow!("Failed to read MachineGuid: {}", e))?;
-        let guid: String = key.get_value("MachineGuid")
+        let guid: String = key
+            .get_value("MachineGuid")
             .map_err(|e| anyhow::anyhow!("Failed to read MachineGuid: {}", e))?;
         let mut hasher = Sha256::new();
         hasher.update(guid.as_bytes());
@@ -108,6 +110,8 @@ fn get_machine_fingerprint() -> anyhow::Result<String> {
     }
     #[cfg(not(windows))]
     {
-        Err(anyhow::anyhow!("Hardware fingerprint not supported on this platform"))
+        Err(anyhow::anyhow!(
+            "Hardware fingerprint not supported on this platform"
+        ))
     }
 }

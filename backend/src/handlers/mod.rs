@@ -1,23 +1,23 @@
+pub mod alerts;
+pub mod allowlist;
 pub mod auth;
+pub mod dashboard;
 pub mod endpoints;
 pub mod events;
-pub mod alerts;
-pub mod iocs;
-pub mod policies;
-pub mod scans;
-pub mod reports;
-pub mod dashboard;
 pub mod health;
+pub mod iocs;
 pub mod license;
-pub mod scanner;
-pub mod settings;
-pub mod allowlist;
 pub mod mfa;
-pub mod shred;
+pub mod policies;
 pub mod profiles;
+pub mod reports;
+pub mod scanner;
+pub mod scans;
+pub mod settings;
+pub mod shred;
 
-use axum::http::StatusCode;
 use axum::Json;
+use axum::http::StatusCode;
 use monolith_shared::auth::{AuthContext, Permission};
 use serde_json::json;
 
@@ -32,4 +32,3 @@ pub fn require_perm(
         )
     })
 }
-

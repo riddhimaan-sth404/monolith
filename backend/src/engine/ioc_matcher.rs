@@ -1,5 +1,5 @@
-use serde_json::Value;
 use dashmap::DashSet;
+use serde_json::Value;
 
 pub struct IocMatcher {
     sha256_set: DashSet<String>,
@@ -23,14 +23,28 @@ impl IocMatcher {
     pub fn load_iocs(&self, iocs: &[Value]) {
         for ioc in iocs {
             let ioc_type = ioc.get("ioc_type").and_then(|v| v.as_str()).unwrap_or("");
-            let value = ioc.get("value").and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
+            let value = ioc
+                .get("value")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_lowercase();
 
             match ioc_type {
-                "sha256" => { self.sha256_set.insert(value); }
-                "sha1" => { self.sha1_set.insert(value); }
-                "md5" => { self.md5_set.insert(value); }
-                "domain" => { self.domain_set.insert(value); }
-                "ip" => { self.ip_set.insert(value); }
+                "sha256" => {
+                    self.sha256_set.insert(value);
+                }
+                "sha1" => {
+                    self.sha1_set.insert(value);
+                }
+                "md5" => {
+                    self.md5_set.insert(value);
+                }
+                "domain" => {
+                    self.domain_set.insert(value);
+                }
+                "ip" => {
+                    self.ip_set.insert(value);
+                }
                 _ => {}
             }
         }
@@ -44,28 +58,34 @@ impl IocMatcher {
             // SHA256 matching
             if let Some(sha256) = data.get("sha256").and_then(|v| v.as_str()) {
                 if self.sha256_set.contains(&sha256.to_lowercase()) {
-                    results.push(self.create_result("ioc_match", format!("SHA256 IOC match: {}", sha256)));
+                    results.push(
+                        self.create_result("ioc_match", format!("SHA256 IOC match: {}", sha256)),
+                    );
                 }
             }
 
             // SHA1 matching
             if let Some(sha1) = data.get("sha1").and_then(|v| v.as_str()) {
                 if self.sha1_set.contains(&sha1.to_lowercase()) {
-                    results.push(self.create_result("ioc_match", format!("SHA1 IOC match: {}", sha1)));
+                    results
+                        .push(self.create_result("ioc_match", format!("SHA1 IOC match: {}", sha1)));
                 }
             }
 
             // MD5 matching
             if let Some(md5) = data.get("md5").and_then(|v| v.as_str()) {
                 if self.md5_set.contains(&md5.to_lowercase()) {
-                    results.push(self.create_result("ioc_match", format!("MD5 IOC match: {}", md5)));
+                    results
+                        .push(self.create_result("ioc_match", format!("MD5 IOC match: {}", md5)));
                 }
             }
 
             // Domain matching (network events)
             if let Some(domain) = data.get("domain").and_then(|v| v.as_str()) {
                 if self.domain_set.contains(&domain.to_lowercase()) {
-                    results.push(self.create_result("ioc_match", format!("Domain IOC match: {}", domain)));
+                    results.push(
+                        self.create_result("ioc_match", format!("Domain IOC match: {}", domain)),
+                    );
                 }
             }
 
@@ -84,7 +104,11 @@ impl IocMatcher {
         }
     }
 
-    fn create_result(&self, rule_type: &str, description: String) -> super::detection::DetectionResult {
+    fn create_result(
+        &self,
+        rule_type: &str,
+        description: String,
+    ) -> super::detection::DetectionResult {
         super::detection::DetectionResult {
             rule_id: format!("{}_{}", rule_type, uuid::Uuid::new_v4()),
             rule_name: format!("IOC: {}", description),
@@ -112,7 +136,10 @@ mod tests {
     #[test]
     fn test_match_sha256() {
         let matcher = IocMatcher::new();
-        matcher.load_iocs(&[make_ioc("sha256", "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890")]);
+        matcher.load_iocs(&[make_ioc(
+            "sha256",
+            "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+        )]);
 
         let event = serde_json::json!({
             "event_type": "process_create",
@@ -193,7 +220,10 @@ mod tests {
     #[test]
     fn test_no_match() {
         let matcher = IocMatcher::new();
-        matcher.load_iocs(&[make_ioc("sha256", "0000000000000000000000000000000000000000000000000000000000000000")]);
+        matcher.load_iocs(&[make_ioc(
+            "sha256",
+            "0000000000000000000000000000000000000000000000000000000000000000",
+        )]);
 
         let event = serde_json::json!({
             "event_type": "process_create",

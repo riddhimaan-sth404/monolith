@@ -1,13 +1,13 @@
 use axum::{
+    Json,
     extract::{Request, State},
+    http::StatusCode,
     middleware::Next,
     response::Response,
-    http::StatusCode,
-    Json,
 };
 use serde_json::json;
 use std::sync::Arc;
-use std::time::{Instant, Duration};
+use std::time::{Duration, Instant};
 
 pub struct TokenBucket {
     pub tokens: f64,
@@ -84,10 +84,7 @@ pub async fn rate_limit_middleware(
     };
 
     let state_clone = state.clone();
-    let buckets = state_clone
-        .services
-        .get_rate_limiter()
-        .await;
+    let buckets = state_clone.services.get_rate_limiter().await;
 
     let allowed = {
         let mut buckets = buckets.lock().await;
@@ -104,12 +101,12 @@ pub async fn rate_limit_middleware(
             });
         }
 
-        let bucket = buckets
-            .entry(bucket_key)
-            .or_insert_with(|| TokenBucket::new(
+        let bucket = buckets.entry(bucket_key).or_insert_with(|| {
+            TokenBucket::new(
                 state.config.rate_limiting.burst_size as f64,
                 state.config.rate_limiting.requests_per_second as f64,
-            ));
+            )
+        });
         bucket.try_consume(1.0)
     };
 
@@ -125,4 +122,3 @@ pub async fn rate_limit_middleware(
 
     Ok(next.run(request).await)
 }
-

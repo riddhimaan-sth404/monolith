@@ -1,9 +1,9 @@
 use axum::{
-    extract::{State, Path, Query},
     Extension, Json,
+    extract::{Path, Query, State},
 };
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 
 use crate::handlers::require_perm;
@@ -60,8 +60,14 @@ pub async fn generate(
 
     match req.report_type.to_lowercase().as_str() {
         "threat_summary" => {
-            let date_from = req.date_from.clone().unwrap_or_else(|| "1970-01-01".to_string());
-            let date_to = req.date_to.clone().unwrap_or_else(|| "2099-12-31".to_string());
+            let date_from = req
+                .date_from
+                .clone()
+                .unwrap_or_else(|| "1970-01-01".to_string());
+            let date_to = req
+                .date_to
+                .clone()
+                .unwrap_or_else(|| "2099-12-31".to_string());
             let alerts = state
                 .db
                 .query_value(

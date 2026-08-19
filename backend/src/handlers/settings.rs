@@ -1,5 +1,5 @@
-use axum::{extract::State, Json};
-use serde_json::{json, Value};
+use axum::{Json, extract::State};
+use serde_json::{Value, json};
 use std::sync::Arc;
 
 use crate::server::AppState;
@@ -20,7 +20,12 @@ fn get_ram_info() -> (u64, f64) {
     {
         use std::process::Command;
         if let Ok(out) = Command::new("wmic")
-            .args(["OS", "get", "TotalVisibleMemorySize,FreePhysicalMemory", "/format:csv"])
+            .args([
+                "OS",
+                "get",
+                "TotalVisibleMemorySize,FreePhysicalMemory",
+                "/format:csv",
+            ])
             .output()
         {
             let stdout = String::from_utf8_lossy(&out.stdout);

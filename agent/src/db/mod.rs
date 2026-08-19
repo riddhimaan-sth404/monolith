@@ -1,5 +1,5 @@
-use monolith_shared::db::traits::DatabaseConnection;
 use monolith_shared::db::DbParam;
+use monolith_shared::db::traits::DatabaseConnection;
 use monolith_shared::error::Result;
 
 pub struct LocalStore<C: DatabaseConnection> {
@@ -13,7 +13,10 @@ impl<C: DatabaseConnection> LocalStore<C> {
 
     pub async fn store_event(&self, event: &serde_json::Value) -> Result<()> {
         let id = uuid::Uuid::new_v4().to_string();
-        let event_type = event.get("event_type").and_then(|v| v.as_str()).unwrap_or("unknown");
+        let event_type = event
+            .get("event_type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown");
         let data = serde_json::to_string(event)?;
 
         self.conn
@@ -31,7 +34,11 @@ impl<C: DatabaseConnection> LocalStore<C> {
         Ok(())
     }
 
-    pub async fn store_offline_event(&self, message_type: &str, payload: &serde_json::Value) -> Result<()> {
+    pub async fn store_offline_event(
+        &self,
+        message_type: &str,
+        payload: &serde_json::Value,
+    ) -> Result<()> {
         let payload_str = serde_json::to_string(payload)?;
 
         self.conn
@@ -71,7 +78,10 @@ impl<C: DatabaseConnection> LocalStore<C> {
         let ioc_id = ioc.get("id").and_then(|v| v.as_str()).unwrap_or("");
         let ioc_type = ioc.get("ioc_type").and_then(|v| v.as_str()).unwrap_or("");
         let value = ioc.get("value").and_then(|v| v.as_str()).unwrap_or("");
-        let severity = ioc.get("severity").and_then(|v| v.as_str()).unwrap_or("medium");
+        let severity = ioc
+            .get("severity")
+            .and_then(|v| v.as_str())
+            .unwrap_or("medium");
 
         self.conn
             .execute(
@@ -95,8 +105,14 @@ impl<C: DatabaseConnection> LocalStore<C> {
 
     pub async fn store_scan_result(&self, result: &serde_json::Value) -> Result<()> {
         let scan_id = result.get("scan_id").and_then(|v| v.as_str()).unwrap_or("");
-        let file_path = result.get("file_path").and_then(|v| v.as_str()).unwrap_or("");
-        let verdict = result.get("verdict").and_then(|v| v.as_str()).unwrap_or("unknown");
+        let file_path = result
+            .get("file_path")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let verdict = result
+            .get("verdict")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown");
 
         self.conn
             .execute(
@@ -104,7 +120,9 @@ impl<C: DatabaseConnection> LocalStore<C> {
                  VALUES (?1, 'local', 'scan', 'completed', ?2)",
                 &[
                     DbParam::Text(scan_id.to_string()),
-                    DbParam::Text(serde_json::json!({"file_path": file_path, "verdict": verdict}).to_string()),
+                    DbParam::Text(
+                        serde_json::json!({"file_path": file_path, "verdict": verdict}).to_string(),
+                    ),
                 ],
             )
             .await?;
@@ -121,7 +139,11 @@ impl<C: DatabaseConnection> LocalStore<C> {
             )
             .await?;
 
-        Ok(result.and_then(|r| r.get("value").and_then(|v| v.as_str()).map(|s| s.to_string())))
+        Ok(result.and_then(|r| {
+            r.get("value")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+        }))
     }
 
     pub async fn set_settings(&self, key: &str, value: &str) -> Result<()> {
@@ -138,12 +160,11 @@ impl<C: DatabaseConnection> LocalStore<C> {
     pub async fn get_queue_depth(&self) -> Result<u32> {
         let result = self
             .conn
-            .query_one::<serde_json::Value>(
-                "SELECT COUNT(*) as cnt FROM offline_queue",
-                &[],
-            )
+            .query_one::<serde_json::Value>("SELECT COUNT(*) as cnt FROM offline_queue", &[])
             .await?;
 
-        Ok(result.and_then(|r| r.get("cnt").and_then(|v| v.as_i64()).map(|i| i as u32)).unwrap_or(0))
+        Ok(result
+            .and_then(|r| r.get("cnt").and_then(|v| v.as_i64()).map(|i| i as u32))
+            .unwrap_or(0))
     }
 }

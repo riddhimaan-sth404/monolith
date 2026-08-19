@@ -1,6 +1,8 @@
+use monolith_shared::config::{
+    ConfigError, ConfigLoader, DatabaseConfig, LoggingConfig, TlsConfig,
+};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use monolith_shared::config::{ConfigError, ConfigLoader, LoggingConfig, TlsConfig, DatabaseConfig};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentConfig {
@@ -246,40 +248,64 @@ impl ConfigLoader for AgentConfig {
 
     fn validate(&self) -> Result<(), ConfigError> {
         if self.server.host.trim().is_empty() {
-            return Err(ConfigError::ValidationError("server.host must not be empty".into()));
+            return Err(ConfigError::ValidationError(
+                "server.host must not be empty".into(),
+            ));
         }
         if self.server.grpc_port == 0 {
-            return Err(ConfigError::ValidationError("server.grpc_port must be 1-65535".into()));
+            return Err(ConfigError::ValidationError(
+                "server.grpc_port must be 1-65535".into(),
+            ));
         }
         if self.server.rest_port == 0 {
-            return Err(ConfigError::ValidationError("server.rest_port must be 1-65535".into()));
+            return Err(ConfigError::ValidationError(
+                "server.rest_port must be 1-65535".into(),
+            ));
         }
         if self.driver.name.trim().is_empty() {
-            return Err(ConfigError::ValidationError("driver.name must not be empty".into()));
+            return Err(ConfigError::ValidationError(
+                "driver.name must not be empty".into(),
+            ));
         }
         if self.driver.buffer_size < 4096 {
-            return Err(ConfigError::ValidationError("driver.buffer_size must be >= 4096".into()));
+            return Err(ConfigError::ValidationError(
+                "driver.buffer_size must be >= 4096".into(),
+            ));
         }
         if self.driver.poll_interval_ms == 0 {
-            return Err(ConfigError::ValidationError("driver.poll_interval_ms must be > 0".into()));
+            return Err(ConfigError::ValidationError(
+                "driver.poll_interval_ms must be > 0".into(),
+            ));
         }
         if self.heartbeat.interval_secs == 0 {
-            return Err(ConfigError::ValidationError("heartbeat.interval_secs must be > 0".into()));
+            return Err(ConfigError::ValidationError(
+                "heartbeat.interval_secs must be > 0".into(),
+            ));
         }
         if self.offline_queue.max_size == 0 {
-            return Err(ConfigError::ValidationError("offline_queue.max_size must be > 0".into()));
+            return Err(ConfigError::ValidationError(
+                "offline_queue.max_size must be > 0".into(),
+            ));
         }
         if self.polling.policy_interval_secs == 0 {
-            return Err(ConfigError::ValidationError("polling.policy_interval_secs must be > 0".into()));
+            return Err(ConfigError::ValidationError(
+                "polling.policy_interval_secs must be > 0".into(),
+            ));
         }
         if self.scanner.address.trim().is_empty() {
-            return Err(ConfigError::ValidationError("scanner.address must not be empty".into()));
+            return Err(ConfigError::ValidationError(
+                "scanner.address must not be empty".into(),
+            ));
         }
         if self.scanner.api_url.trim().is_empty() {
-            return Err(ConfigError::ValidationError("scanner.api_url must not be empty".into()));
+            return Err(ConfigError::ValidationError(
+                "scanner.api_url must not be empty".into(),
+            ));
         }
         if self.database.path.trim().is_empty() {
-            return Err(ConfigError::ValidationError("database.path must not be empty".into()));
+            return Err(ConfigError::ValidationError(
+                "database.path must not be empty".into(),
+            ));
         }
         Ok(())
     }

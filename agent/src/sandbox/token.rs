@@ -1,16 +1,16 @@
 #![allow(unsafe_code)]
 
 use monolith_shared::error::{EdrError, Result};
-use windows_sys::Win32::Foundation::{CloseHandle, HANDLE, FALSE};
+use std::os::windows::ffi::OsStrExt;
+use std::ptr::null_mut;
+use windows_sys::Win32::Foundation::{CloseHandle, FALSE, HANDLE};
 use windows_sys::Win32::Security::{
     CreateRestrictedToken, TOKEN_ASSIGN_PRIMARY, TOKEN_DUPLICATE, TOKEN_IMPERSONATE, TOKEN_QUERY,
 };
 use windows_sys::Win32::System::Threading::{
-    CreateProcessAsUserW, GetCurrentProcess, OpenProcessToken,
-    PROCESS_INFORMATION, STARTUPINFOW, CREATE_SUSPENDED, CREATE_NEW_CONSOLE,
+    CREATE_NEW_CONSOLE, CREATE_SUSPENDED, CreateProcessAsUserW, GetCurrentProcess,
+    OpenProcessToken, PROCESS_INFORMATION, STARTUPINFOW,
 };
-use std::os::windows::ffi::OsStrExt;
-use std::ptr::null_mut;
 
 pub struct RestrictedToken {
     handle: HANDLE,
@@ -27,9 +27,7 @@ impl RestrictedToken {
             )
         };
         if result == 0 {
-            return Err(EdrError::WindowsError(
-                "OpenProcessToken failed".into(),
-            ));
+            return Err(EdrError::WindowsError("OpenProcessToken failed".into()));
         }
 
         let mut restricted: HANDLE = null_mut();
@@ -37,9 +35,12 @@ impl RestrictedToken {
             CreateRestrictedToken(
                 token_handle,
                 0,
-                0, null_mut(),
-                0, null_mut(),
-                0, null_mut(),
+                0,
+                null_mut(),
+                0,
+                null_mut(),
+                0,
+                null_mut(),
                 &mut restricted,
             )
         };
@@ -89,9 +90,7 @@ impl RestrictedToken {
             )
         };
         if result == 0 {
-            return Err(EdrError::WindowsError(
-                "CreateProcessAsUserW failed".into(),
-            ));
+            return Err(EdrError::WindowsError("CreateProcessAsUserW failed".into()));
         }
 
         Ok((pi.hProcess, pi.dwProcessId))

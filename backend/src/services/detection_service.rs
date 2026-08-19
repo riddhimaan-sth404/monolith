@@ -1,12 +1,14 @@
+use serde_json::Value;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use serde_json::Value;
 
 use crate::engine::detection::{DetectionEngine, DetectionResult};
-use crate::engine::response_rules::{self, RuleEngine, AlertInfo, DetectionSource, CorrelationType, MatchedAction, ResponseRule};
+use crate::engine::response_rules::{
+    self, AlertInfo, CorrelationType, DetectionSource, MatchedAction, ResponseRule, RuleEngine,
+};
 use monolith_shared::db::DatabaseConnection;
-use monolith_shared::error::Result;
 use monolith_shared::db::DbParam;
+use monolith_shared::error::Result;
 
 pub struct DetectionService {
     engine: DetectionEngine,
@@ -40,11 +42,27 @@ impl DetectionService {
         let mut action_ids = Vec::new();
 
         if event.get("source").and_then(|v| v.as_str()) == Some("local_detection") {
-            let rule_id = event.get("alert.rule_id").and_then(|v| v.as_str()).unwrap_or("agent_alert");
-            let severity = event.get("alert.severity").and_then(|v| v.as_str()).unwrap_or("high");
-            let _match_value = event.get("alert.match_value").and_then(|v| v.as_str()).unwrap_or("agent_detection");
-            let description = event.get("alert.description").and_then(|v| v.as_str()).unwrap_or("");
-            let score = event.get("alert.count").and_then(|v| v.as_str()).and_then(|s| s.parse::<f64>().ok()).unwrap_or(1.0);
+            let rule_id = event
+                .get("alert.rule_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("agent_alert");
+            let severity = event
+                .get("alert.severity")
+                .and_then(|v| v.as_str())
+                .unwrap_or("high");
+            let _match_value = event
+                .get("alert.match_value")
+                .and_then(|v| v.as_str())
+                .unwrap_or("agent_detection");
+            let description = event
+                .get("alert.description")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let score = event
+                .get("alert.count")
+                .and_then(|v| v.as_str())
+                .and_then(|s| s.parse::<f64>().ok())
+                .unwrap_or(1.0);
 
             // 1. Create standard Alert record
             let alert_id = uuid::Uuid::new_v4().to_string();
@@ -64,13 +82,37 @@ impl DetectionService {
 
             // 2. Memory Alert record
             if rule_id == "memory_scan" {
-                let process_id = event.get("memory.process_id").and_then(|v| v.as_str()).and_then(|s| s.parse::<i64>().ok()).unwrap_or(0);
-                let process_name = event.get("memory.process_name").and_then(|v| v.as_str()).unwrap_or("unknown");
-                let region_base = event.get("memory.region_base").and_then(|v| v.as_str()).unwrap_or("0x0");
-                let matched_rules = event.get("memory.matched_rules").and_then(|v| v.as_str()).unwrap_or("");
-                let yara_matches = event.get("memory.yara_matches").and_then(|v| v.as_str()).and_then(|s| s.parse::<i64>().ok()).unwrap_or(0);
-                let contains_pe = event.get("memory.contains_pe").and_then(|v| v.as_str()).and_then(|s| s.parse::<i64>().ok()).unwrap_or(0);
-                let verdict = event.get("memory.verdict").and_then(|v| v.as_str()).unwrap_or("suspicious");
+                let process_id = event
+                    .get("memory.process_id")
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| s.parse::<i64>().ok())
+                    .unwrap_or(0);
+                let process_name = event
+                    .get("memory.process_name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("unknown");
+                let region_base = event
+                    .get("memory.region_base")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("0x0");
+                let matched_rules = event
+                    .get("memory.matched_rules")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                let yara_matches = event
+                    .get("memory.yara_matches")
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| s.parse::<i64>().ok())
+                    .unwrap_or(0);
+                let contains_pe = event
+                    .get("memory.contains_pe")
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| s.parse::<i64>().ok())
+                    .unwrap_or(0);
+                let verdict = event
+                    .get("memory.verdict")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("suspicious");
 
                 let memory_alert_id = uuid::Uuid::new_v4().to_string();
                 let _ = db.execute(
@@ -92,13 +134,36 @@ impl DetectionService {
 
             // 3. Registry Tamper record
             if rule_id == "registry_tamper" {
-                let key_path = event.get("registry.key_path").and_then(|v| v.as_str()).unwrap_or("unknown");
-                let operation = event.get("registry.operation").and_then(|v| v.as_str()).unwrap_or("blocked_write");
-                let offending_pid = event.get("registry.offending_pid").and_then(|v| v.as_str()).and_then(|s| s.parse::<i64>().ok()).unwrap_or(0);
-                let offending_process = event.get("registry.offending_process").and_then(|v| v.as_str()).unwrap_or("unknown");
-                let old_value = event.get("registry.old_value").and_then(|v| v.as_str()).unwrap_or("");
-                let new_value = event.get("registry.new_value").and_then(|v| v.as_str()).unwrap_or("");
-                let blocked = event.get("registry.blocked").and_then(|v| v.as_str()).and_then(|s| s.parse::<i64>().ok()).unwrap_or(0);
+                let key_path = event
+                    .get("registry.key_path")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("unknown");
+                let operation = event
+                    .get("registry.operation")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("blocked_write");
+                let offending_pid = event
+                    .get("registry.offending_pid")
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| s.parse::<i64>().ok())
+                    .unwrap_or(0);
+                let offending_process = event
+                    .get("registry.offending_process")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("unknown");
+                let old_value = event
+                    .get("registry.old_value")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                let new_value = event
+                    .get("registry.new_value")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                let blocked = event
+                    .get("registry.blocked")
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| s.parse::<i64>().ok())
+                    .unwrap_or(0);
 
                 let tamper_id = uuid::Uuid::new_v4().to_string();
                 let _ = db.execute(
@@ -153,7 +218,9 @@ impl DetectionService {
 
         let sources = self.extract_sources(&result.tags);
 
-        let correlation_type = result.tags.iter()
+        let correlation_type = result
+            .tags
+            .iter()
             .find_map(|t| t.parse::<CorrelationType>().ok());
 
         AlertInfo {
@@ -166,7 +233,10 @@ impl DetectionService {
             sources,
             correlation_type,
             file_path: result.matched_fields.get("file_path").cloned(),
-            pid: result.matched_fields.get("pid").and_then(|v| v.parse().ok()),
+            pid: result
+                .matched_fields
+                .get("pid")
+                .and_then(|v| v.parse().ok()),
         }
     }
 
@@ -185,34 +255,51 @@ impl DetectionService {
         sources
     }
 
-    async fn create_alert(&self, result: &DetectionResult, endpoint_id: &str, db: &dyn DatabaseConnection) -> Result<String> {
+    async fn create_alert(
+        &self,
+        result: &DetectionResult,
+        endpoint_id: &str,
+        db: &dyn DatabaseConnection,
+    ) -> Result<String> {
         let tag_list = result.tags.join(",");
 
         // Try to find a matching alert created in the last 5 minutes that is still "new"
-        let existing = db.query_one_value(
-            "SELECT id, hit_count FROM alerts 
+        let existing = db
+            .query_one_value(
+                "SELECT id, hit_count FROM alerts 
              WHERE endpoint_id = ?1 AND rule_id = ?2 AND title = ?3 AND status = 'new'
              AND datetime(created_at) >= datetime('now', '-5 minutes')
              LIMIT 1",
-            &[
-                DbParam::Text(endpoint_id.to_string()),
-                DbParam::Text(result.rule_id.clone()),
-                DbParam::Text(result.rule_name.clone()),
-            ]
-        ).await?;
+                &[
+                    DbParam::Text(endpoint_id.to_string()),
+                    DbParam::Text(result.rule_id.clone()),
+                    DbParam::Text(result.rule_name.clone()),
+                ],
+            )
+            .await?;
 
         if let Some(row) = existing {
-            let id = row.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let id = row
+                .get("id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
             let current_hits = row.get("hit_count").and_then(|v| v.as_i64()).unwrap_or(1);
             db.execute(
                 "UPDATE alerts SET hit_count = ?1, updated_at = datetime('now') WHERE id = ?2",
                 &[
                     DbParam::Integer(current_hits + 1),
                     DbParam::Text(id.clone()),
-                ]
-            ).await?;
-            tracing::info!("alert deduplicated: id={} rule={} severity={} new_hits={}",
-                id, result.rule_id, result.severity, current_hits + 1);
+                ],
+            )
+            .await?;
+            tracing::info!(
+                "alert deduplicated: id={} rule={} severity={} new_hits={}",
+                id,
+                result.rule_id,
+                result.severity,
+                current_hits + 1
+            );
             return Ok(id);
         }
 
@@ -235,13 +322,21 @@ impl DetectionService {
             ],
         ).await?;
 
-        tracing::info!("alert created: id={} rule={} severity={} score={:.1}",
-            alert_id, result.rule_id, result.severity, result.score);
+        tracing::info!(
+            "alert created: id={} rule={} severity={} score={:.1}",
+            alert_id,
+            result.rule_id,
+            result.severity,
+            result.score
+        );
 
         // Fire desktop notification (non-blocking)
         if result.severity == "high" || result.severity == "critical" {
             let notif_title = format!("EDR Alert: {}", result.severity);
-            let notif_msg = format!("Rule '{}' matched (score: {:.1})", result.rule_name, result.score);
+            let notif_msg = format!(
+                "Rule '{}' matched (score: {:.1})",
+                result.rule_name, result.score
+            );
             let path = self.toast_script_path.clone();
             tokio::spawn(async move {
                 crate::notifications::send_alert_notification(path, &notif_title, &notif_msg).await;
@@ -251,7 +346,11 @@ impl DetectionService {
         Ok(alert_id)
     }
 
-    async fn create_action(&self, matched: &MatchedAction, db: &dyn DatabaseConnection) -> Result<Option<String>> {
+    async fn create_action(
+        &self,
+        matched: &MatchedAction,
+        db: &dyn DatabaseConnection,
+    ) -> Result<Option<String>> {
         if matched.action == response_rules::RuleAction::AlertOnly {
             return Ok(None);
         }
@@ -272,8 +371,13 @@ impl DetectionService {
             ],
         ).await?;
 
-        tracing::info!("auto-response action created: id={} type={} endpoint={} rule={}",
-            action_id, action_type, matched.target_endpoint, matched.rule_id);
+        tracing::info!(
+            "auto-response action created: id={} type={} endpoint={} rule={}",
+            action_id,
+            action_type,
+            matched.target_endpoint,
+            matched.rule_id
+        );
 
         Ok(Some(action_id))
     }
@@ -285,7 +389,9 @@ impl DetectionService {
     }
 
     pub fn rule_count(&self) -> usize {
-        let engine = self.rule_engine.try_lock()
+        let engine = self
+            .rule_engine
+            .try_lock()
             .map(|e| e.rule_count())
             .unwrap_or(0);
         engine
@@ -320,14 +426,38 @@ mod tests {
     struct MockDb;
     #[async_trait::async_trait]
     impl DatabaseConnection for MockDb {
-        async fn execute(&self, _sql: &str, _params: &[DbParam]) -> Result<u64> { Ok(1) }
-        async fn execute_batch(&self, _sql: &str) -> Result<()> { Ok(()) }
-        async fn query<T: serde::de::DeserializeOwned + Send>(&self, _sql: &str, _params: &[DbParam]) -> Result<Vec<T>> { Ok(vec![]) }
-        async fn query_one<T: serde::de::DeserializeOwned + Send>(&self, _sql: &str, _params: &[DbParam]) -> Result<Option<T>> { Ok(None) }
-        async fn query_value(&self, _sql: &str, _params: &[DbParam]) -> Result<Vec<Value>> { Ok(vec![]) }
-        async fn query_one_value(&self, _sql: &str, _params: &[DbParam]) -> Result<Option<Value>> { Ok(None) }
-        async fn query_raw(&self, _sql: &str, _params: &[DbParam]) -> Result<Vec<Vec<Value>>> { Ok(vec![]) }
-        async fn last_insert_rowid(&self) -> Result<i64> { Ok(1) }
+        async fn execute(&self, _sql: &str, _params: &[DbParam]) -> Result<u64> {
+            Ok(1)
+        }
+        async fn execute_batch(&self, _sql: &str) -> Result<()> {
+            Ok(())
+        }
+        async fn query<T: serde::de::DeserializeOwned + Send>(
+            &self,
+            _sql: &str,
+            _params: &[DbParam],
+        ) -> Result<Vec<T>> {
+            Ok(vec![])
+        }
+        async fn query_one<T: serde::de::DeserializeOwned + Send>(
+            &self,
+            _sql: &str,
+            _params: &[DbParam],
+        ) -> Result<Option<T>> {
+            Ok(None)
+        }
+        async fn query_value(&self, _sql: &str, _params: &[DbParam]) -> Result<Vec<Value>> {
+            Ok(vec![])
+        }
+        async fn query_one_value(&self, _sql: &str, _params: &[DbParam]) -> Result<Option<Value>> {
+            Ok(None)
+        }
+        async fn query_raw(&self, _sql: &str, _params: &[DbParam]) -> Result<Vec<Vec<Value>>> {
+            Ok(vec![])
+        }
+        async fn last_insert_rowid(&self) -> Result<i64> {
+            Ok(1)
+        }
         async fn begin_transaction(&self) -> Result<Box<dyn monolith_shared::db::Transaction>> {
             Ok(Box::new(MockTx))
         }
@@ -336,8 +466,14 @@ mod tests {
     struct MockTx;
     #[async_trait::async_trait]
     impl monolith_shared::db::Transaction for MockTx {
-        async fn commit(self: Box<Self>) -> Result<()> { Ok(()) }
-        async fn rollback(self: Box<Self>) -> Result<()> { Ok(()) }
-        async fn execute(&self, _sql: &str, _params: &[DbParam]) -> Result<u64> { Ok(1) }
+        async fn commit(self: Box<Self>) -> Result<()> {
+            Ok(())
+        }
+        async fn rollback(self: Box<Self>) -> Result<()> {
+            Ok(())
+        }
+        async fn execute(&self, _sql: &str, _params: &[DbParam]) -> Result<u64> {
+            Ok(1)
+        }
     }
 }

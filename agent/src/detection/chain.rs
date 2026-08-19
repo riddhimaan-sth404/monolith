@@ -29,10 +29,20 @@ impl ChainDetector {
         }
     }
 
-    pub fn record_process_spawn(&mut self, pid: u32, parent_pid: u32, image: &str, parent_image: &str) {
+    pub fn record_process_spawn(
+        &mut self,
+        pid: u32,
+        parent_pid: u32,
+        image: &str,
+        parent_image: &str,
+    ) {
         let now = Instant::now();
         let spawn = ProcessSpawn {
-            pid, parent_pid, image: image.to_string(), parent_image: parent_image.to_string(), time: now,
+            pid,
+            parent_pid,
+            image: image.to_string(),
+            parent_image: parent_image.to_string(),
+            time: now,
         };
         if self.recent_spawns.len() < MAX_SPAWN_TRACK {
             self.recent_spawns.push(spawn);
@@ -44,20 +54,30 @@ impl ChainDetector {
 
     pub fn record_registry_persistence(&mut self, key_path: &str) {
         let now = Instant::now();
-        self.registry_persistence_writes.push((key_path.to_string(), now));
-        self.registry_persistence_writes.retain(|(_, t)| t.elapsed() < Duration::from_secs(PERSISTENCE_WINDOW_SECS));
+        self.registry_persistence_writes
+            .push((key_path.to_string(), now));
+        self.registry_persistence_writes
+            .retain(|(_, t)| t.elapsed() < Duration::from_secs(PERSISTENCE_WINDOW_SECS));
     }
 
-    pub fn check_file_against_recent_registry(&mut self, path: &str, _pid: u32) -> Option<super::DetectionAction> {
-        self.registry_persistence_writes.retain(|(_, t)| t.elapsed() < Duration::from_secs(PERSISTENCE_WINDOW_SECS));
+    pub fn check_file_against_recent_registry(
+        &mut self,
+        path: &str,
+        _pid: u32,
+    ) -> Option<super::DetectionAction> {
+        self.registry_persistence_writes
+            .retain(|(_, t)| t.elapsed() < Duration::from_secs(PERSISTENCE_WINDOW_SECS));
         if self.registry_persistence_writes.is_empty() {
             return None;
         }
         let lower = path.to_lowercase();
         let appdata_dirs = ["\\appdata\\", "\\programdata\\", "\\startup\\"];
         let in_user_dir = appdata_dirs.iter().any(|d| lower.contains(d));
-        let is_exe_or_script = lower.ends_with(".exe") || lower.ends_with(".dll")
-            || lower.ends_with(".ps1") || lower.ends_with(".vbs") || lower.ends_with(".js");
+        let is_exe_or_script = lower.ends_with(".exe")
+            || lower.ends_with(".dll")
+            || lower.ends_with(".ps1")
+            || lower.ends_with(".vbs")
+            || lower.ends_with(".js");
         if in_user_dir && is_exe_or_script {
             return Some(super::DetectionAction {
                 action_type: "quarantine_file".to_string(),
@@ -78,7 +98,13 @@ impl ChainDetector {
             || lower.contains(r"microsoft\windows\currentversion\run")
     }
 
-    pub fn check_spawn_chain(&mut self, pid: u32, _parent_pid: u32, image: &str, parent_image: &str) -> Option<super::DetectionAction> {
+    pub fn check_spawn_chain(
+        &mut self,
+        pid: u32,
+        _parent_pid: u32,
+        image: &str,
+        parent_image: &str,
+    ) -> Option<super::DetectionAction> {
         let lower_image = image.to_lowercase();
         let lower_parent = parent_image.to_lowercase();
 
@@ -123,7 +149,9 @@ impl ChainDetector {
         // Also check stored spawns for grandparent chains (A→B→C)
         // Ensure the parent process matches, is not expired, and has a start time before now
         for spawn in &self.recent_spawns {
-            if spawn.time.elapsed() < Duration::from_secs(ANCESTRY_WINDOW_SECS) && spawn.pid == _parent_pid {
+            if spawn.time.elapsed() < Duration::from_secs(ANCESTRY_WINDOW_SECS)
+                && spawn.pid == _parent_pid
+            {
                 let grandparent_lower = spawn.parent_image.to_lowercase();
                 for (gp, child, _rule_id, severity) in chains {
                     let gpmatch = grandparent_lower.contains(gp) || grandparent_lower == *gp;
@@ -144,7 +172,11 @@ impl ChainDetector {
         None
     }
 
-    pub fn check_registry_event(&mut self, key_path: &str, _pid: u32) -> Option<super::DetectionAction> {
+    pub fn check_registry_event(
+        &mut self,
+        key_path: &str,
+        _pid: u32,
+    ) -> Option<super::DetectionAction> {
         if Self::is_persistence_key(key_path) {
             self.record_registry_persistence(key_path);
             return Some(super::DetectionAction {
@@ -165,34 +197,48 @@ mod tests {
 
     #[test]
     fn test_is_persistence_key_run() {
-        assert!(ChainDetector::is_persistence_key(r"HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run"));
+        assert!(ChainDetector::is_persistence_key(
+            r"HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
+        ));
     }
 
     #[test]
     fn test_is_persistence_key_runonce() {
-        assert!(ChainDetector::is_persistence_key(r"HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce"));
+        assert!(ChainDetector::is_persistence_key(
+            r"HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce"
+        ));
     }
 
     #[test]
     fn test_is_persistence_key_policies_explorer() {
-        assert!(ChainDetector::is_persistence_key(r"HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run"));
+        assert!(ChainDetector::is_persistence_key(
+            r"HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer\Run"
+        ));
     }
 
     #[test]
     fn test_is_persistence_key_runservices() {
-        assert!(ChainDetector::is_persistence_key(r"HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices"));
+        assert!(ChainDetector::is_persistence_key(
+            r"HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices"
+        ));
     }
 
     #[test]
     fn test_is_persistence_key_non_persistence() {
-        assert!(!ChainDetector::is_persistence_key(r"HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"));
-        assert!(!ChainDetector::is_persistence_key(r"HKLM\SOFTWARE\Classes\.exe"));
+        assert!(!ChainDetector::is_persistence_key(
+            r"HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"
+        ));
+        assert!(!ChainDetector::is_persistence_key(
+            r"HKLM\SOFTWARE\Classes\.exe"
+        ));
         assert!(!ChainDetector::is_persistence_key(r""));
     }
 
     #[test]
     fn test_is_persistence_key_case_insensitive() {
-        assert!(ChainDetector::is_persistence_key(r"hklm\software\microsoft\windows\currentversion\run"));
+        assert!(ChainDetector::is_persistence_key(
+            r"hklm\software\microsoft\windows\currentversion\run"
+        ));
     }
 
     // --- check_registry_event ---
@@ -200,7 +246,10 @@ mod tests {
     #[test]
     fn test_registry_persistence_key_returns_alert() {
         let mut cd = ChainDetector::new();
-        let result = cd.check_registry_event(r"HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\Malware", 123);
+        let result = cd.check_registry_event(
+            r"HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\Malware",
+            123,
+        );
         assert!(result.is_some());
         let action = result.unwrap();
         assert_eq!(action.action_type, "alert_only");
@@ -211,7 +260,10 @@ mod tests {
     #[test]
     fn test_registry_non_persistence_key_returns_none() {
         let mut cd = ChainDetector::new();
-        assert!(cd.check_registry_event(r"HKLM\SOFTWARE\Classes\.txt", 456).is_none());
+        assert!(
+            cd.check_registry_event(r"HKLM\SOFTWARE\Classes\.txt", 456)
+                .is_none()
+        );
     }
 
     // --- check_spawn_chain ---
@@ -299,7 +351,12 @@ mod tests {
     #[test]
     fn test_spawn_chain_parent_with_path() {
         let mut cd = ChainDetector::new();
-        let result = cd.check_spawn_chain(1011, 0, "powershell.exe", "C:\\Program Files\\Microsoft Office\\root\\Office16\\WINWORD.EXE");
+        let result = cd.check_spawn_chain(
+            1011,
+            0,
+            "powershell.exe",
+            "C:\\Program Files\\Microsoft Office\\root\\Office16\\WINWORD.EXE",
+        );
         assert!(result.is_some());
         assert_eq!(result.unwrap().severity, "high");
     }
@@ -307,7 +364,12 @@ mod tests {
     #[test]
     fn test_spawn_chain_child_with_path() {
         let mut cd = ChainDetector::new();
-        let result = cd.check_spawn_chain(1012, 0, "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "cmd.exe");
+        let result = cd.check_spawn_chain(
+            1012,
+            0,
+            "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            "cmd.exe",
+        );
         assert!(result.is_some());
         assert_eq!(result.unwrap().severity, "medium");
     }
@@ -333,7 +395,10 @@ mod tests {
     #[test]
     fn test_file_combo_no_recent_registry() {
         let mut cd = ChainDetector::new();
-        let result = cd.check_file_against_recent_registry("C:\\Users\\test\\AppData\\Local\\temp\\evil.exe", 3001);
+        let result = cd.check_file_against_recent_registry(
+            "C:\\Users\\test\\AppData\\Local\\temp\\evil.exe",
+            3001,
+        );
         assert!(result.is_none());
     }
 
@@ -353,7 +418,10 @@ mod tests {
     fn test_file_combo_recent_registry_plus_programdata_ps1() {
         let mut cd = ChainDetector::new();
         cd.record_registry_persistence(r"HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce");
-        let result = cd.check_file_against_recent_registry("C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\script.ps1", 3003);
+        let result = cd.check_file_against_recent_registry(
+            "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\script.ps1",
+            3003,
+        );
         assert!(result.is_some());
         assert_eq!(result.unwrap().severity, "critical");
     }
@@ -362,7 +430,8 @@ mod tests {
     fn test_file_combo_recent_registry_but_file_not_in_user_dir() {
         let mut cd = ChainDetector::new();
         cd.record_registry_persistence(r"HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run");
-        let result = cd.check_file_against_recent_registry("C:\\Windows\\System32\\legit.dll", 3004);
+        let result =
+            cd.check_file_against_recent_registry("C:\\Windows\\System32\\legit.dll", 3004);
         assert!(result.is_none());
     }
 
@@ -370,16 +439,23 @@ mod tests {
     fn test_file_combo_recent_registry_but_not_exe_or_script() {
         let mut cd = ChainDetector::new();
         cd.record_registry_persistence(r"HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run");
-        let result = cd.check_file_against_recent_registry("C:\\Users\\test\\AppData\\Local\\readme.txt", 3005);
+        let result = cd.check_file_against_recent_registry(
+            "C:\\Users\\test\\AppData\\Local\\readme.txt",
+            3005,
+        );
         assert!(result.is_none());
     }
 
     #[test]
     fn test_file_combo_expired_registry_not_detected() {
         let mut cd = ChainDetector::new();
-        cd.registry_persistence_writes.push(("HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run".to_string(), Instant::now() - Duration::from_secs(121)));
+        cd.registry_persistence_writes.push((
+            "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run".to_string(),
+            Instant::now() - Duration::from_secs(121),
+        ));
         // The expired entry should be pruned
-        let result = cd.check_file_against_recent_registry("C:\\Users\\test\\AppData\\Local\\evil.exe", 3006);
+        let result = cd
+            .check_file_against_recent_registry("C:\\Users\\test\\AppData\\Local\\evil.exe", 3006);
         assert!(result.is_none());
     }
 
@@ -387,7 +463,10 @@ mod tests {
     fn test_file_combo_detects_dll_in_user_dir() {
         let mut cd = ChainDetector::new();
         cd.record_registry_persistence(r"HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run");
-        let result = cd.check_file_against_recent_registry("C:\\Users\\test\\AppData\\Local\\Temp\\malicious.dll", 3007);
+        let result = cd.check_file_against_recent_registry(
+            "C:\\Users\\test\\AppData\\Local\\Temp\\malicious.dll",
+            3007,
+        );
         assert!(result.is_some());
         assert_eq!(result.unwrap().action_type, "quarantine_file");
     }

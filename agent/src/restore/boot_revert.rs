@@ -7,7 +7,11 @@
 
 /// Mark a rollback as pending (called before reboot).
 pub fn mark_rollback_pending(snapshot_id: &str, volume: &str) -> Result<(), String> {
-    tracing::info!("marking rollback pending: snapshot={}, volume={}", snapshot_id, volume);
+    tracing::info!(
+        "marking rollback pending: snapshot={}, volume={}",
+        snapshot_id,
+        volume
+    );
     Err("boot revert not yet implemented (Phase 1a)".to_string())
 }
 

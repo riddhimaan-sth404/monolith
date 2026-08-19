@@ -1,14 +1,18 @@
 #![allow(missing_docs)]
-use std::path::PathBuf;
-use std::sync::Arc;
 use clap::Parser;
 use monolith_backend::{config::AppConfig, server::Server};
 use monolith_shared::config::{ConfigLoader, DatabaseKind};
 use monolith_shared::db::{Database, PostgresDatabase, SqliteDatabase};
 use monolith_shared::logging::init_logging;
+use std::path::PathBuf;
+use std::sync::Arc;
 
 #[derive(Parser)]
-#[command(name = "monolith-backend", version, about = "Monolith Management Server")]
+#[command(
+    name = "monolith-backend",
+    version,
+    about = "Monolith Management Server"
+)]
 struct Cli {
     #[arg(short, long, default_value = "configs/backend.toml")]
     config: PathBuf,
@@ -59,12 +63,17 @@ async fn main() -> anyhow::Result<()> {
     let config = AppConfig::load(&cli.config)?;
 
     // Initialize logging
-    init_logging(&config.logging).map_err(|e| anyhow::anyhow!("Failed to initialize logging: {}", e))?;
+    init_logging(&config.logging)
+        .map_err(|e| anyhow::anyhow!("Failed to initialize logging: {}", e))?;
 
     tracing::info!("starting EDR backend server");
 
     // Initialize database (supports both SQLite and PostgreSQL)
-    tracing::info!("connecting to {:?}: {}", config.database.kind, config.database.path);
+    tracing::info!(
+        "connecting to {:?}: {}",
+        config.database.kind,
+        config.database.path
+    );
     let conn: Box<dyn monolith_shared::db::DatabaseConnection> = match config.database.kind {
         DatabaseKind::Sqlite => {
             let db = SqliteDatabase::new(&config.database.path);

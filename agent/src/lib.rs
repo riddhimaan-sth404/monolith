@@ -1,22 +1,22 @@
 #![allow(missing_docs)]
 
-pub mod config;
-pub mod service;
-pub mod driver;
 pub mod collector;
-pub mod sync;
+pub mod config;
 pub mod db;
 pub mod detection;
-pub mod response;
+pub mod driver;
+pub mod etw_manager;
 pub mod grpc;
-pub mod tlv_parser;
-pub mod tamper;
+pub mod memory_scanner;
+pub mod metrics;
+pub mod profile;
+pub mod resilience;
+pub mod response;
+pub mod restore;
 pub mod sandbox;
 pub mod scanner_events;
-pub mod etw_manager;
-pub mod resilience;
-pub mod metrics;
-pub mod memory_scanner;
+pub mod service;
+pub mod sync;
 pub mod system_state;
-pub mod profile;
-pub mod restore;
+pub mod tamper;
+pub mod tlv_parser;

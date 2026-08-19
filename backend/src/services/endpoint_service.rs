@@ -1,7 +1,7 @@
-use chrono::{DateTime, Utc};
-use uuid::Uuid;
-use monolith_shared::types::{Endpoint, EndpointStatus};
 use crate::error::ServiceResult;
+use chrono::{DateTime, Utc};
+use monolith_shared::types::{Endpoint, EndpointStatus};
+use uuid::Uuid;
 
 pub struct EndpointService;
 
@@ -10,11 +10,7 @@ impl EndpointService {
         Self
     }
 
-    pub fn calculate_status(
-        &self,
-        last_seen: &DateTime<Utc>,
-        isolated: bool,
-    ) -> EndpointStatus {
+    pub fn calculate_status(&self, last_seen: &DateTime<Utc>, isolated: bool) -> EndpointStatus {
         if isolated {
             return EndpointStatus::Isolated;
         }
@@ -53,7 +49,9 @@ impl EndpointService {
     }
 
     pub fn validate_endpoint_id(&self, id: &str) -> ServiceResult<Uuid> {
-        Ok(Uuid::parse_str(id).map_err(|e| monolith_shared::error::EdrError::Internal(format!("invalid UUID: {}", e)))?)
+        Ok(Uuid::parse_str(id).map_err(|e| {
+            monolith_shared::error::EdrError::Internal(format!("invalid UUID: {}", e))
+        })?)
     }
 }
 

@@ -74,7 +74,14 @@ async fn cmd_status() -> Result<()> {
             let has_restore = bundle.has_feature("system_restore");
             let expired = bundle.is_expired();
 
-            println!("Restore Feature: {}", if has_restore { "LICENSED" } else { "NOT LICENSED" });
+            println!(
+                "Restore Feature: {}",
+                if has_restore {
+                    "LICENSED"
+                } else {
+                    "NOT LICENSED"
+                }
+            );
             println!("License Expired: {}", if expired { "YES" } else { "no" });
             println!("Vendor: {}", bundle.payload.vendor);
             println!("Expires: {}", bundle.payload.expires);
@@ -112,7 +119,10 @@ async fn cmd_claim(drive: u32, partition: u32) -> Result<()> {
     println!("Use the agent's CLI or the backend web interface.");
     println!();
     println!("To do it manually via the agent debug endpoint:");
-    println!("  curl -X POST http://localhost:8091/restore/claim/{}/{}", drive, partition);
+    println!(
+        "  curl -X POST http://localhost:8091/restore/claim/{}/{}",
+        drive, partition
+    );
     output::ok("Partition claim initiated (if agent is running)");
     Ok(())
 }

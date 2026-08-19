@@ -1,5 +1,5 @@
-use serde_json::Value;
 use crate::error::ServiceResult;
+use serde_json::Value;
 
 pub struct ReportService;
 
@@ -10,10 +10,22 @@ impl ReportService {
 
     pub fn generate_threat_summary(&self, alerts: &[Value]) -> Value {
         let total = alerts.len();
-        let critical = alerts.iter().filter(|a| a.get("severity").and_then(|v| v.as_str()) == Some("critical")).count();
-        let high = alerts.iter().filter(|a| a.get("severity").and_then(|v| v.as_str()) == Some("high")).count();
-        let medium = alerts.iter().filter(|a| a.get("severity").and_then(|v| v.as_str()) == Some("medium")).count();
-        let low = alerts.iter().filter(|a| a.get("severity").and_then(|v| v.as_str()) == Some("low")).count();
+        let critical = alerts
+            .iter()
+            .filter(|a| a.get("severity").and_then(|v| v.as_str()) == Some("critical"))
+            .count();
+        let high = alerts
+            .iter()
+            .filter(|a| a.get("severity").and_then(|v| v.as_str()) == Some("high"))
+            .count();
+        let medium = alerts
+            .iter()
+            .filter(|a| a.get("severity").and_then(|v| v.as_str()) == Some("medium"))
+            .count();
+        let low = alerts
+            .iter()
+            .filter(|a| a.get("severity").and_then(|v| v.as_str()) == Some("low"))
+            .count();
 
         serde_json::json!({
             "total_alerts": total,
@@ -33,7 +45,8 @@ impl ReportService {
 
     pub fn export_csv(&self, data: &[Value], fields: &[&str]) -> ServiceResult<String> {
         let mut wtr = csv::Writer::from_writer(Vec::new());
-        wtr.write_record(fields).map_err(|e| monolith_shared::error::EdrError::SerializationError(e.to_string()))?;
+        wtr.write_record(fields)
+            .map_err(|e| monolith_shared::error::EdrError::SerializationError(e.to_string()))?;
 
         for row in data {
             let values: Vec<String> = fields
@@ -47,10 +60,14 @@ impl ReportService {
                         .unwrap_or_default()
                 })
                 .collect();
-            wtr.write_record(&values).map_err(|e| monolith_shared::error::EdrError::SerializationError(e.to_string()))?;
+            wtr.write_record(&values)
+                .map_err(|e| monolith_shared::error::EdrError::SerializationError(e.to_string()))?;
         }
 
-        let result = wtr.into_inner().map_err(|e| monolith_shared::error::EdrError::SerializationError(e.to_string()))?;
-        Ok(String::from_utf8(result).map_err(|e| monolith_shared::error::EdrError::SerializationError(e.to_string()))?)
+        let result = wtr
+            .into_inner()
+            .map_err(|e| monolith_shared::error::EdrError::SerializationError(e.to_string()))?;
+        Ok(String::from_utf8(result)
+            .map_err(|e| monolith_shared::error::EdrError::SerializationError(e.to_string()))?)
     }
 }

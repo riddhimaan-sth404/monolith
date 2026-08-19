@@ -1,12 +1,10 @@
-use axum::{extract::State, Json};
-use serde_json::{json, Value};
+use axum::{Json, extract::State};
+use serde_json::{Value, json};
 use std::sync::Arc;
 
 use crate::server::AppState;
 
-pub async fn liveness(
-    State(_state): State<Arc<AppState>>,
-) -> Json<Value> {
+pub async fn liveness(State(_state): State<Arc<AppState>>) -> Json<Value> {
     Json(json!({
         "status": "ok",
         "service": "monolith-backend",

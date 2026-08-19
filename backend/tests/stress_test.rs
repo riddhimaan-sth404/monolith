@@ -1,18 +1,21 @@
-use std::sync::Arc;
 use axum::{
+    Router,
     body::Body,
     http::{self, Request, StatusCode},
-    Router,
 };
-use tower::ServiceExt;
 use serde_json::json;
+use std::sync::Arc;
+use tower::ServiceExt;
 
-use monolith_backend::config::{AppConfig, ServerConfig, AuthConfig, RateLimitingConfig, ResponseRulesConfig, NotificationsConfig};
-use monolith_backend::server::AppState;
+use monolith_backend::config::{
+    AppConfig, AuthConfig, NotificationsConfig, RateLimitingConfig, ResponseRulesConfig,
+    ServerConfig,
+};
 use monolith_backend::router::build_router;
-use monolith_shared::config::{TlsConfig, DatabaseConfig, LoggingConfig, DatabaseKind};
+use monolith_backend::server::AppState;
+use monolith_shared::config::{DatabaseConfig, DatabaseKind, LoggingConfig, TlsConfig};
 use monolith_shared::crypto::JwtManager;
-use monolith_shared::db::{SqliteDatabase, Database, MigrationManager, DbParam};
+use monolith_shared::db::{Database, DbParam, MigrationManager, SqliteDatabase};
 
 async fn setup_stress_test_app(rate_limit_enabled: bool) -> (Router, String, Arc<AppState>) {
     let dir = tempfile::TempDir::new().unwrap();
@@ -72,50 +75,65 @@ async fn setup_stress_test_app(rate_limit_enabled: bool) -> (Router, String, Arc
         config.auth.jwt_expiration_secs,
         config.auth.refresh_expiration_secs,
     );
-    let token = jwt.issue_token("test-user-id", "admin", "administrator").unwrap();
+    let token = jwt
+        .issue_token("test-user-id", "admin", "administrator")
+        .unwrap();
     let token_hash = monolith_shared::crypto::hash_token(&token);
 
-    let valid_hash = monolith_shared::crypto::PasswordHashManager::hash("correct-password").unwrap();
+    let valid_hash =
+        monolith_shared::crypto::PasswordHashManager::hash("correct-password").unwrap();
 
     // Insert test user
-    state.db.execute(
-        "INSERT INTO users (id, username, password_hash, email, role, enabled)
+    state
+        .db
+        .execute(
+            "INSERT INTO users (id, username, password_hash, email, role, enabled)
          VALUES (?1, ?2, ?3, ?4, ?5, 1)",
-        &[
-            DbParam::Text("test-user-id".to_string()),
-            DbParam::Text("admin".to_string()),
-            DbParam::Text(valid_hash),
-            DbParam::Text("admin@example.com".to_string()),
-            DbParam::Text("administrator".to_string()),
-        ],
-    ).await.unwrap();
+            &[
+                DbParam::Text("test-user-id".to_string()),
+                DbParam::Text("admin".to_string()),
+                DbParam::Text(valid_hash),
+                DbParam::Text("admin@example.com".to_string()),
+                DbParam::Text("administrator".to_string()),
+            ],
+        )
+        .await
+        .unwrap();
 
     // Save token to sessions table
-    state.db.execute(
-        "INSERT INTO sessions (id, user_id, token, token_hash, refresh_token, expires_at)
+    state
+        .db
+        .execute(
+            "INSERT INTO sessions (id, user_id, token, token_hash, refresh_token, expires_at)
          VALUES (?1, ?2, ?3, ?4, ?5, datetime('now', '+1 day'))",
-        &[
-            DbParam::Text(uuid::Uuid::new_v4().to_string()),
-            DbParam::Text("test-user-id".to_string()),
-            DbParam::Text(token.clone()),
-            DbParam::Text(token_hash),
-            DbParam::Text("mock-refresh-token".to_string()),
-        ],
-    ).await.unwrap();
+            &[
+                DbParam::Text(uuid::Uuid::new_v4().to_string()),
+                DbParam::Text("test-user-id".to_string()),
+                DbParam::Text(token.clone()),
+                DbParam::Text(token_hash),
+                DbParam::Text("mock-refresh-token".to_string()),
+            ],
+        )
+        .await
+        .unwrap();
 
     // Register a test endpoint
-    state.db.execute(
-        "INSERT INTO endpoints (id, hostname, ip_address, os_version, agent_version, status)
+    state
+        .db
+        .execute(
+            "INSERT INTO endpoints (id, hostname, ip_address, os_version, agent_version, status)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-        &[
-            DbParam::Text("test-endpoint-id".to_string()),
-            DbParam::Text("test-host".to_string()),
-            DbParam::Text("127.0.0.1".to_string()),
-            DbParam::Text("Windows 10".to_string()),
-            DbParam::Text("1.0.0".to_string()),
-            DbParam::Text("online".to_string()),
-        ],
-    ).await.unwrap();
+            &[
+                DbParam::Text("test-endpoint-id".to_string()),
+                DbParam::Text("test-host".to_string()),
+                DbParam::Text("127.0.0.1".to_string()),
+                DbParam::Text("Windows 10".to_string()),
+                DbParam::Text("1.0.0".to_string()),
+                DbParam::Text("online".to_string()),
+            ],
+        )
+        .await
+        .unwrap();
 
     (app, token, state)
 }
@@ -132,7 +150,7 @@ async fn test_concurrent_event_ingestion_stress() {
     for i in 0..num_tasks {
         let app_clone = app_arc.clone();
         let token_clone = token.clone();
-        
+
         let handle = tokio::spawn(async move {
             for j in 0..events_per_task {
                 let payload = json!({
@@ -152,7 +170,10 @@ async fn test_concurrent_event_ingestion_stress() {
                     .method(http::Method::POST)
                     .uri("/api/v1/events/ingest")
                     .header(http::header::CONTENT_TYPE, "application/json")
-                    .header(http::header::AUTHORIZATION, format!("Bearer {}", token_clone))
+                    .header(
+                        http::header::AUTHORIZATION,
+                        format!("Bearer {}", token_clone),
+                    )
                     .body(Body::from(serde_json::to_vec(&payload).unwrap()))
                     .unwrap();
 
@@ -168,17 +189,23 @@ async fn test_concurrent_event_ingestion_stress() {
     }
 
     // Verify all events are present in the DB
-    let result = state.db.query_value(
-        "SELECT COUNT(*) as count FROM events",
-        &[]
-    ).await.unwrap();
-    
-    let count = result.first()
+    let result = state
+        .db
+        .query_value("SELECT COUNT(*) as count FROM events", &[])
+        .await
+        .unwrap();
+
+    let count = result
+        .first()
         .and_then(|row| row.get("count"))
         .and_then(|v| v.as_i64())
         .unwrap_or(0);
-        
-    assert_eq!(count, (num_tasks * events_per_task) as i64, "All events should be stored successfully in SQLite");
+
+    assert_eq!(
+        count,
+        (num_tasks * events_per_task) as i64,
+        "All events should be stored successfully in SQLite"
+    );
 }
 
 #[tokio::test]
@@ -192,12 +219,15 @@ async fn test_concurrent_rate_limiting_stress() {
     for _ in 0..num_requests {
         let app_clone = app_arc.clone();
         let token_clone = token.clone();
-        
+
         let handle = tokio::spawn(async move {
             let req = Request::builder()
                 .method(http::Method::GET)
                 .uri("/api/v1/health/ready")
-                .header(http::header::AUTHORIZATION, format!("Bearer {}", token_clone))
+                .header(
+                    http::header::AUTHORIZATION,
+                    format!("Bearer {}", token_clone),
+                )
                 .body(Body::empty())
                 .unwrap();
 
@@ -214,5 +244,8 @@ async fn test_concurrent_rate_limiting_stress() {
         }
     }
 
-    assert!(too_many_requests_hit, "Rate limiter should trigger and return 429 Too Many Requests under burst load");
+    assert!(
+        too_many_requests_hit,
+        "Rate limiter should trigger and return 429 Too Many Requests under burst load"
+    );
 }

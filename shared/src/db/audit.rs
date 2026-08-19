@@ -1,6 +1,6 @@
-use ring::digest;
-use crate::error::Result;
 use crate::db::{DatabaseConnection, DbParam};
+use crate::error::Result;
+use ring::digest;
 
 #[derive(Debug, Clone)]
 pub struct AuditLogEntry {
@@ -46,7 +46,10 @@ impl AuditLogger {
             )
             .await?
         {
-            Some(row) => row.get("hash").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            Some(row) => row
+                .get("hash")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
             None => None,
         };
 
@@ -113,7 +116,10 @@ impl AuditLogger {
             let user_id = row.get("user_id").and_then(|v| v.as_str()).unwrap_or("");
             let username = row.get("username").and_then(|v| v.as_str()).unwrap_or("");
             let action = row.get("action").and_then(|v| v.as_str()).unwrap_or("");
-            let target_type = row.get("target_type").and_then(|v| v.as_str()).unwrap_or("");
+            let target_type = row
+                .get("target_type")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
             let target_id = row.get("target_id").and_then(|v| v.as_str()).unwrap_or("");
             let details = row.get("details").and_then(|v| v.as_str()).unwrap_or("");
             let result_status = row.get("result").and_then(|v| v.as_str()).unwrap_or("");
@@ -165,10 +171,10 @@ impl AuditLogger {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::SqliteDatabase;
-    use crate::db::MigrationManager;
     use crate::config::DatabaseConfig;
     use crate::db::Database;
+    use crate::db::MigrationManager;
+    use crate::db::SqliteDatabase;
 
     #[tokio::test]
     async fn test_audit_logging_chaining() {
@@ -208,16 +214,7 @@ mod tests {
         .unwrap();
 
         let _h3 = AuditLogger::log(
-            &conn,
-            None,
-            None,
-            "action3",
-            None,
-            None,
-            None,
-            None,
-            None,
-            "failure",
+            &conn, None, None, "action3", None, None, None, None, None, "failure",
         )
         .await
         .unwrap();
@@ -226,9 +223,12 @@ mod tests {
         assert!(AuditLogger::verify_trail(&conn).await.unwrap());
 
         // 3. Tamper with the trail: modify action3's result to "success"
-        conn.execute("UPDATE audit_logs SET result = 'success' WHERE action = 'action3'", &[])
-            .await
-            .unwrap();
+        conn.execute(
+            "UPDATE audit_logs SET result = 'success' WHERE action = 'action3'",
+            &[],
+        )
+        .await
+        .unwrap();
 
         // 4. Verify audit trail fails verification!
         assert!(!AuditLogger::verify_trail(&conn).await.unwrap());

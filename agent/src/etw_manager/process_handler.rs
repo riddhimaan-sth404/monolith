@@ -1,6 +1,6 @@
-use std::os::windows::ffi::OsStringExt;
 use chrono::Utc;
 use prost_types::Timestamp;
+use std::os::windows::ffi::OsStringExt;
 
 use monolith_protobuf::proto::v1::{self, event::Payload};
 
@@ -47,9 +47,9 @@ fn parse_unicode_at_end(data: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::VecDeque;
     use std::sync::Arc;
     use tokio::sync::Mutex;
-    use std::collections::VecDeque;
 
     fn make_process_create_buf(parent_pid: u32, image: &str) -> Vec<u8> {
         let mut buf = vec![0u8; 48];

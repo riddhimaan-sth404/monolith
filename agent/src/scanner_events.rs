@@ -1,9 +1,9 @@
-use std::collections::VecDeque;
-use std::sync::Arc;
-use axum::{Json, extract::State, http::StatusCode, routing::post, Router};
+use axum::{Json, Router, extract::State, http::StatusCode, routing::post};
 use chrono::Utc;
 use prost_types::Timestamp;
 use serde::Deserialize;
+use std::collections::VecDeque;
+use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use monolith_protobuf::proto::v1::{self, FileHashes, ScannerResultEvent};
@@ -22,10 +22,7 @@ struct AppState {
     buffer: Arc<Mutex<VecDeque<v1::Event>>>,
 }
 
-pub async fn start(
-    buffer: Arc<Mutex<VecDeque<v1::Event>>>,
-    listen_addr: &str,
-) {
+pub async fn start(buffer: Arc<Mutex<VecDeque<v1::Event>>>, listen_addr: &str) {
     let state = Arc::new(AppState { buffer });
 
     let app = Router::new()
@@ -41,7 +38,11 @@ pub async fn start(
             }
         }
         Err(e) => {
-            tracing::error!("failed to bind scanner event listener on {}: {}", listen_addr, e);
+            tracing::error!(
+                "failed to bind scanner event listener on {}: {}",
+                listen_addr,
+                e
+            );
         }
     }
 }

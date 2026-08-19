@@ -7,7 +7,7 @@
 
 use std::io::Result;
 
-use crate::driver::{ioctl, DriverHandle};
+use crate::driver::{DriverHandle, ioctl};
 use windows_sys::Win32::{Foundation::FALSE, System::IO::DeviceIoControl};
 
 /// Security hardening utilities (NTFS permissions).
@@ -34,7 +34,11 @@ impl TamperProtection {
     }
 }
 
-fn send_ioctl(handle: windows_sys::Win32::Foundation::HANDLE, code: u32, input: Option<&[u8]>) -> Result<()> {
+fn send_ioctl(
+    handle: windows_sys::Win32::Foundation::HANDLE,
+    code: u32,
+    input: Option<&[u8]>,
+) -> Result<()> {
     let mut bytes_returned: u32 = 0;
     let result = unsafe {
         DeviceIoControl(
@@ -66,7 +70,10 @@ pub fn setup_respawn(handle: &DriverHandle) -> Result<()> {
     let cmd_line = format!("\"{}\" {}", exe_path_str, cmd_line);
 
     // Build the EDR_RESPAWN_INFO struct with wide strings
-    let image_path_wide: Vec<u16> = exe_path_str.encode_utf16().chain(std::iter::once(0)).collect();
+    let image_path_wide: Vec<u16> = exe_path_str
+        .encode_utf16()
+        .chain(std::iter::once(0))
+        .collect();
     let cmd_line_wide: Vec<u16> = cmd_line.encode_utf16().chain(std::iter::once(0)).collect();
 
     // Pad to expected sizes (260 and 1024 WCHARs)

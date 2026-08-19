@@ -3,10 +3,10 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use axum::{
+    Json, Router,
     extract::State,
     http::StatusCode,
     routing::{get, post},
-    Json, Router,
 };
 use base64::Engine;
 use clap::Parser;
@@ -92,14 +92,16 @@ fn load_rules(path: &Path) -> Result<Rules> {
                 files_loaded += 1;
             }
             Err(e) => {
-                warn!("failed to compile rule file: {}: {}", file_path.display(), e);
+                warn!(
+                    "failed to compile rule file: {}: {}",
+                    file_path.display(),
+                    e
+                );
             }
         }
     }
 
-    info!(
-        "YARA rules loaded: {files_loaded}/{files_found} files compiled successfully",
-    );
+    info!("YARA rules loaded: {files_loaded}/{files_found} files compiled successfully",);
 
     let rules = compiler.build();
     let mut count = 0;
@@ -116,9 +118,9 @@ fn is_path_safe(path: &Path) -> bool {
         Ok(p) => p,
         Err(_) => path.to_path_buf(),
     };
-    
+
     let path_str = abs_path.to_string_lossy().to_lowercase();
-    
+
     // Block reading sensitive configurations, certs, databases, or signatures
     if path_str.contains("certs")
         || path_str.contains("configs")
@@ -131,7 +133,7 @@ fn is_path_safe(path: &Path) -> bool {
     {
         return false;
     }
-    
+
     true
 }
 
@@ -216,7 +218,13 @@ async fn handle_match(
         });
     }
 
-    (StatusCode::OK, Json(MatchResponse { matches, error: None }))
+    (
+        StatusCode::OK,
+        Json(MatchResponse {
+            matches,
+            error: None,
+        }),
+    )
 }
 
 async fn handle_health() -> StatusCode {
@@ -239,8 +247,7 @@ fn main() -> Result<()> {
 async fn async_main() -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "info".into()),
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
         )
         .json()
         .init();
@@ -271,9 +278,7 @@ async fn async_main() -> Result<()> {
         .context("failed to bind listener")?;
 
     info!("YARA matcher listening on {}", args.listen);
-    axum::serve(listener, app)
-        .await
-        .context("server error")?;
+    axum::serve(listener, app).await.context("server error")?;
 
     Ok(())
 }

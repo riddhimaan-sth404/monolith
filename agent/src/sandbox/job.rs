@@ -1,15 +1,15 @@
 #![allow(unsafe_code)]
 
 use monolith_shared::error::{EdrError, Result};
-use windows_sys::Win32::Foundation::{CloseHandle, HANDLE};
-use windows_sys::Win32::System::JobObjects::{
-    AssignProcessToJobObject, CreateJobObjectW, SetInformationJobObject,
-    JobObjectExtendedLimitInformation, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
-    JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE, JOB_OBJECT_LIMIT_PROCESS_MEMORY,
-    JOB_OBJECT_LIMIT_JOB_TIME, JOB_OBJECT_LIMIT_ACTIVE_PROCESS,
-};
 use std::os::windows::ffi::OsStrExt;
 use std::ptr::null;
+use windows_sys::Win32::Foundation::{CloseHandle, HANDLE};
+use windows_sys::Win32::System::JobObjects::{
+    AssignProcessToJobObject, CreateJobObjectW, JOB_OBJECT_LIMIT_ACTIVE_PROCESS,
+    JOB_OBJECT_LIMIT_JOB_TIME, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE, JOB_OBJECT_LIMIT_PROCESS_MEMORY,
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JobObjectExtendedLimitInformation,
+    SetInformationJobObject,
+};
 
 pub struct JobObject {
     handle: HANDLE,
@@ -27,17 +27,18 @@ impl JobObject {
         let name_ptr = name_wide.as_ref().map(|v| v.as_ptr()).unwrap_or(null());
         let handle = unsafe { CreateJobObjectW(null(), name_ptr) };
         if handle.is_null() {
-            return Err(EdrError::WindowsError(
-                "CreateJobObjectW failed".into(),
-            ));
+            return Err(EdrError::WindowsError("CreateJobObjectW failed".into()));
         }
         Ok(Self { handle })
     }
 
-    pub fn set_limits(&self, memory_limit_mb: u64, timeout_ms: u64, max_processes: u32) -> Result<()> {
-        let mut info: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = unsafe {
-            std::mem::zeroed()
-        };
+    pub fn set_limits(
+        &self,
+        memory_limit_mb: u64,
+        timeout_ms: u64,
+        max_processes: u32,
+    ) -> Result<()> {
+        let mut info: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = unsafe { std::mem::zeroed() };
         {
             let basic = &mut info.BasicLimitInformation;
             basic.PerProcessUserTimeLimit = 0;

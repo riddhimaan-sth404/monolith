@@ -1,7 +1,7 @@
+use monolith_shared::error::{EdrError, Result};
 use printpdf::*;
 use serde_json::Value;
 use std::io::BufWriter;
-use monolith_shared::error::{EdrError, Result};
 
 pub struct ReportGenerator;
 
@@ -11,28 +11,34 @@ impl ReportGenerator {
     }
 
     pub fn generate_pdf(&self, data: &Value, _output_path: &str) -> Result<Vec<u8>> {
-        let (doc, page1, layer1) = PdfDocument::new(
-            "EDR Report",
-            Mm(210.0),
-            Mm(297.0),
-            "Layer 1",
-        );
+        let (doc, page1, layer1) = PdfDocument::new("EDR Report", Mm(210.0), Mm(297.0), "Layer 1");
 
-        let font = doc.add_builtin_font(BuiltinFont::Helvetica)
+        let font = doc
+            .add_builtin_font(BuiltinFont::Helvetica)
             .map_err(|e| EdrError::Internal(format!("PDF font error: {}", e)))?;
-        let font_bold = doc.add_builtin_font(BuiltinFont::HelveticaBold)
+        let font_bold = doc
+            .add_builtin_font(BuiltinFont::HelveticaBold)
             .map_err(|e| EdrError::Internal(format!("PDF font bold error: {}", e)))?;
 
         let current_layer = doc.get_page(page1).get_layer(layer1);
 
         // Title
-        let title = data.get("title").and_then(|v| v.as_str()).unwrap_or("EDR Report");
+        let title = data
+            .get("title")
+            .and_then(|v| v.as_str())
+            .unwrap_or("EDR Report");
         current_layer.use_text(title, 24.0, Mm(20.0), Mm(270.0), &font_bold);
 
         // Timestamp
         let timestamp = data.get("timestamp").and_then(|v| v.as_str()).unwrap_or("");
         if !timestamp.is_empty() {
-            current_layer.use_text(&format!("Generated: {}", timestamp), 10.0, Mm(20.0), Mm(260.0), &font);
+            current_layer.use_text(
+                &format!("Generated: {}", timestamp),
+                10.0,
+                Mm(20.0),
+                Mm(260.0),
+                &font,
+            );
         }
 
         // Summary section
@@ -72,7 +78,11 @@ impl ReportGenerator {
                 let status = alert.get("status").and_then(|v| v.as_str()).unwrap_or("");
                 let score = alert.get("score").and_then(|v| v.as_f64()).unwrap_or(0.0);
 
-                let sev_font = if severity == "critical" || severity == "high" { &font_bold } else { &font };
+                let sev_font = if severity == "critical" || severity == "high" {
+                    &font_bold
+                } else {
+                    &font
+                };
                 current_layer.use_text(severity, 8.0, Mm(20.0), Mm(y_pos), sev_font);
                 current_layer.use_text(title, 8.0, Mm(50.0), Mm(y_pos), &font);
                 current_layer.use_text(status, 8.0, Mm(140.0), Mm(y_pos), &font);
@@ -108,7 +118,8 @@ impl ReportGenerator {
         let mut writer = BufWriter::new(Vec::new());
         doc.save(&mut writer)
             .map_err(|e| EdrError::Internal(format!("PDF save error: {}", e)))?;
-        let bytes = writer.into_inner()
+        let bytes = writer
+            .into_inner()
             .map_err(|e| EdrError::Internal(format!("PDF buffer error: {}", e)))?;
 
         Ok(bytes)
@@ -135,7 +146,8 @@ impl ReportGenerator {
                 .map_err(|e| EdrError::Internal(format!("CSV write error: {}", e)))?;
         }
 
-        let result = wtr.into_inner()
+        let result = wtr
+            .into_inner()
             .map_err(|e| EdrError::Internal(format!("CSV inner error: {}", e)))?;
         Ok(String::from_utf8(result)
             .map_err(|e| EdrError::Internal(format!("UTF-8 error: {}", e)))?)
@@ -189,12 +201,10 @@ mod tests {
     #[test]
     fn test_csv_generation() {
         let generator = ReportGenerator::new();
-        let data = vec![
-            json!({
-                "hostname": "win-1",
-                "status": "online"
-            })
-        ];
+        let data = vec![json!({
+            "hostname": "win-1",
+            "status": "online"
+        })];
         let fields = vec!["hostname", "status"];
         let csv = generator.generate_csv(&data, &fields);
         assert!(csv.is_ok());
@@ -203,5 +213,3 @@ mod tests {
         assert!(csv_str.contains("win-1,online"));
     }
 }
-
-

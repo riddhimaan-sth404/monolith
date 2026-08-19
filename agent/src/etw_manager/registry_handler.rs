@@ -1,6 +1,6 @@
-use std::os::windows::ffi::OsStringExt;
 use chrono::Utc;
 use prost_types::Timestamp;
+use std::os::windows::ffi::OsStringExt;
 
 use monolith_protobuf::proto::v1::{self, event::Payload};
 
@@ -13,11 +13,11 @@ pub fn handle_event(event_id: u16, pid: u32, data: &[u8], ctx: &EtwDispatchConte
     }
 
     let operation = match event_id {
-        1 => 1,  // RegOpCreateKey
-        2 => 3,  // RegOpSetValue
-        3 => 2,  // RegOpDeleteKey
-        4 => 4,  // RegOpDeleteValue
-        5 => 5,  // RegOpRenameKey
+        1 => 1, // RegOpCreateKey
+        2 => 3, // RegOpSetValue
+        3 => 2, // RegOpDeleteKey
+        4 => 4, // RegOpDeleteValue
+        5 => 5, // RegOpRenameKey
         _ => return,
     };
 
@@ -91,9 +91,9 @@ fn extract_key_path(data: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::VecDeque;
     use std::sync::Arc;
     use tokio::sync::Mutex;
-    use std::collections::VecDeque;
 
     fn make_registry_buf(key_path: &str) -> Vec<u8> {
         let encoded: Vec<u16> = key_path.encode_utf16().collect();
@@ -122,7 +122,10 @@ mod tests {
     fn test_extract_key_path_valid() {
         let buf = make_registry_buf("HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run");
         let result = extract_key_path(&buf);
-        assert_eq!(result, "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run");
+        assert_eq!(
+            result,
+            "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run"
+        );
     }
 
     #[test]

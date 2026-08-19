@@ -1,6 +1,6 @@
 use crate::auth::TokenStore;
 use crate::config::Config;
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use reqwest::Client as ReqwestClient;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -21,8 +21,7 @@ pub struct MonolithClient {
 
 impl MonolithClient {
     pub fn new(config: &Config, token: Option<TokenStore>) -> anyhow::Result<Self> {
-        let mut builder = ReqwestClient::builder()
-            .user_agent("mono-cli/1.0.0");
+        let mut builder = ReqwestClient::builder().user_agent("mono-cli/1.0.0");
 
         if let Some(ref ca_path) = config.ca_cert {
             let pem_bytes = std::fs::read(ca_path)
@@ -105,7 +104,11 @@ impl MonolithClient {
         Ok(resp.json().await?)
     }
 
-    pub async fn activate(&self, product_key: &str, fingerprint: &str) -> anyhow::Result<ActivateResponse> {
+    pub async fn activate(
+        &self,
+        product_key: &str,
+        fingerprint: &str,
+    ) -> anyhow::Result<ActivateResponse> {
         let body = serde_json::json!({
             "product_key": product_key,
             "hardware_fingerprint": fingerprint,

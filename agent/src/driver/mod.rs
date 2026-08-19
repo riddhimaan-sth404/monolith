@@ -21,15 +21,15 @@ impl DriverCommunicator {
 
         #[cfg(windows)]
         {
-            use windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE;
+            use std::ffi::CString;
             use windows_sys::Win32::Foundation::GENERIC_READ;
             use windows_sys::Win32::Foundation::GENERIC_WRITE;
+            use windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE;
             use windows_sys::Win32::Storage::FileSystem::CreateFileA;
+            use windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_NORMAL;
             use windows_sys::Win32::Storage::FileSystem::FILE_SHARE_READ;
             use windows_sys::Win32::Storage::FileSystem::FILE_SHARE_WRITE;
             use windows_sys::Win32::Storage::FileSystem::OPEN_EXISTING;
-            use windows_sys::Win32::Storage::FileSystem::FILE_ATTRIBUTE_NORMAL;
-            use std::ffi::CString;
 
             let path = CString::new(self.device_path.as_str())
                 .map_err(|_| EdrError::DriverError("invalid device path".into()))?;
@@ -67,8 +67,8 @@ impl DriverCommunicator {
     pub fn register_agent(&self, handle: &DriverHandle, pid: u32) -> Result<()> {
         #[cfg(windows)]
         {
-            use windows_sys::Win32::System::IO::DeviceIoControl;
             use windows_sys::Win32::Foundation::FALSE;
+            use windows_sys::Win32::System::IO::DeviceIoControl;
 
             let ioctl_code = ioctl::IOCTL_EDR_REGISTER_AGENT;
             let mut bytes_returned: u32 = 0;
@@ -87,7 +87,9 @@ impl DriverCommunicator {
             };
 
             if result == FALSE {
-                return Err(EdrError::DriverError("IOCTL agent registration failed".into()));
+                return Err(EdrError::DriverError(
+                    "IOCTL agent registration failed".into(),
+                ));
             }
 
             tracing::info!("agent successfully registered to driver with PID {}", pid);
@@ -105,8 +107,8 @@ impl DriverCommunicator {
     pub fn read_telemetry(&self, handle: &DriverHandle) -> Result<Vec<u8>> {
         #[cfg(windows)]
         {
-            use windows_sys::Win32::System::IO::DeviceIoControl;
             use windows_sys::Win32::Foundation::FALSE;
+            use windows_sys::Win32::System::IO::DeviceIoControl;
 
             let mut buffer = vec![0u8; self.buffer_size as usize];
             let mut bytes_returned: u32 = 0;
@@ -143,8 +145,8 @@ impl DriverCommunicator {
     pub fn scan_process_memory(&self, handle: &DriverHandle, pid: u32) -> Result<u32> {
         #[cfg(windows)]
         {
-            use windows_sys::Win32::System::IO::DeviceIoControl;
             use windows_sys::Win32::Foundation::FALSE;
+            use windows_sys::Win32::System::IO::DeviceIoControl;
 
             let ioctl_code = ioctl::IOCTL_EDR_SCAN_PROCESS_MEMORY;
             let mut bytes_returned: u32 = 0;
@@ -167,7 +169,11 @@ impl DriverCommunicator {
                 return Err(EdrError::DriverError("IOCTL memory scan failed".into()));
             }
 
-            tracing::info!("driver scan_process_memory: PID={}, suspicious={}", pid, output);
+            tracing::info!(
+                "driver scan_process_memory: PID={}, suspicious={}",
+                pid,
+                output
+            );
             Ok(output)
         }
 
@@ -182,8 +188,8 @@ impl DriverCommunicator {
     pub fn get_driver_stats(&self, handle: &DriverHandle) -> Result<Vec<u8>> {
         #[cfg(windows)]
         {
-            use windows_sys::Win32::System::IO::DeviceIoControl;
             use windows_sys::Win32::Foundation::FALSE;
+            use windows_sys::Win32::System::IO::DeviceIoControl;
 
             let mut buffer = vec![0u8; 256];
             let mut bytes_returned: u32 = 0;

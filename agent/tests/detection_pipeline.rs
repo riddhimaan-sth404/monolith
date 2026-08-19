@@ -1,17 +1,14 @@
-use std::collections::HashMap;
 use monolith_agent::detection::alert::AlertManager;
 use monolith_agent::detection::chain::ChainDetector;
 use monolith_agent::detection::{DetectionAction, LocalDetectionEngine};
 use serde_json::json;
+use std::collections::HashMap;
 
 // ──────────────────────────────────────────────
 // Helper: build a minimal policy JSON like the backend would send
 // ──────────────────────────────────────────────
 fn make_policy(iocs: &[&str], extra_processes: &[&str]) -> Vec<u8> {
-    let ioc_list: Vec<serde_json::Value> = iocs
-        .iter()
-        .map(|v| json!({"value": v}))
-        .collect();
+    let ioc_list: Vec<serde_json::Value> = iocs.iter().map(|v| json!({"value": v})).collect();
     let rule_list: Vec<serde_json::Value> = extra_processes
         .iter()
         .map(|p| json!({"process": p}))
@@ -59,7 +56,10 @@ fn test_attack_chain_office_to_powershell_to_malware() {
 
     // Phase 2: PowerShell downloads and executes malware.exe
     // Load IoCs simulating a policy sync after the initial compromise
-    engine.load_iocs(&make_policy(&["malware.dll", "C:\\temp\\staged_payload.exe"], &[]));
+    engine.load_iocs(&make_policy(
+        &["malware.dll", "C:\\temp\\staged_payload.exe"],
+        &[],
+    ));
 
     // Detect malware.exe via process event
     let action = engine.check_process_event(1002, 1001, "C:\\temp\\staged_payload.exe", "");
@@ -87,10 +87,8 @@ fn test_persistence_chain_registry_then_file_combo() {
     assert_eq!(engine.detection_count(), 1);
 
     // Step 2: Attacker drops evil.dll to AppData (combo with recent registry write)
-    let file_action = engine.check_file_event(
-        "C:\\Users\\victim\\AppData\\Local\\Temp\\evil.dll",
-        1003,
-    );
+    let file_action =
+        engine.check_file_event("C:\\Users\\victim\\AppData\\Local\\Temp\\evil.dll", 1003);
     assert!(file_action.is_some(), "should detect registry+file combo");
     let fa = file_action.unwrap();
     assert_eq!(fa.action_type, "quarantine_file");
@@ -98,10 +96,7 @@ fn test_persistence_chain_registry_then_file_combo() {
     assert_eq!(engine.detection_count(), 2);
 
     // Step 3: Non-suspicious file in system32 should NOT trigger combo
-    let no_match = engine.check_file_event(
-        "C:\\Windows\\System32\\kernel32.dll",
-        1004,
-    );
+    let no_match = engine.check_file_event("C:\\Windows\\System32\\kernel32.dll", 1004);
     assert!(no_match.is_none(), "system file should not trigger combo");
 }
 
@@ -118,8 +113,12 @@ fn test_browser_drive_by_chain() {
     assert_eq!(action.unwrap().severity, "high");
 
     // Edge spawns cmd.exe (not a rule, but Edge -> powershell IS a rule)
-    assert!(engine.check_process_chain(2002, 3001, "cmd.exe", "msedge.exe").is_none(),
-        "msedge -> cmd is not a configured chain rule");
+    assert!(
+        engine
+            .check_process_chain(2002, 3001, "cmd.exe", "msedge.exe")
+            .is_none(),
+        "msedge -> cmd is not a configured chain rule"
+    );
 
     // Normal browser usage should not trigger
     let normal = engine.check_process_chain(2003, 3002, "notepad.exe", "chrome.exe");
@@ -135,9 +134,16 @@ fn test_grandparent_chain_detection_via_stored_spawn() {
     let mut engine = LocalDetectionEngine::new();
 
     // First, record winword → notepad (not a chain match by itself)
-    assert!(engine.check_process_chain(3001, 4000, "notepad.exe", "winword.exe").is_none());
-    assert_eq!(engine.detection_count(), 0,
-        "winword->notepad alone is not a match");
+    assert!(
+        engine
+            .check_process_chain(3001, 4000, "notepad.exe", "winword.exe")
+            .is_none()
+    );
+    assert_eq!(
+        engine.detection_count(),
+        0,
+        "winword->notepad alone is not a match"
+    );
 
     // Now notepad → powershell with parent_pid pointing to the recorded spawn
     let action = engine.check_process_chain(3002, 3001, "powershell.exe", "notepad.exe");
@@ -167,7 +173,8 @@ fn test_ioc_matching_via_json_events() {
     ));
 
     // SHA256 hash match
-    let event = json!({"sha256": "a1b2c3d4e5f60000a1b2c3d4e5f60000a1b2c3d4e5f60000a1b2c3d4e5f60000"});
+    let event =
+        json!({"sha256": "a1b2c3d4e5f60000a1b2c3d4e5f60000a1b2c3d4e5f60000a1b2c3d4e5f60000"});
     let m = engine
         .check_event_json(&event.to_string())
         .expect("should match SHA256");
@@ -214,16 +221,40 @@ fn test_alert_dedup_and_escalation_to_critical() {
     let mut alerts = AlertManager::new();
 
     // First two hits: medium
-    let a1 = alerts.evaluate("rule_001", "medium", "malware.exe", 5001, "Malware detected").unwrap();
+    let a1 = alerts
+        .evaluate(
+            "rule_001",
+            "medium",
+            "malware.exe",
+            5001,
+            "Malware detected",
+        )
+        .unwrap();
     assert_eq!(a1.severity, "medium");
     assert_eq!(a1.count, 1);
 
-    let a2 = alerts.evaluate("rule_001", "medium", "malware.exe", 5001, "Malware detected").unwrap();
+    let a2 = alerts
+        .evaluate(
+            "rule_001",
+            "medium",
+            "malware.exe",
+            5001,
+            "Malware detected",
+        )
+        .unwrap();
     assert_eq!(a2.severity, "medium");
     assert_eq!(a2.count, 2);
 
     // Third hit: escalates to critical
-    let a3 = alerts.evaluate("rule_001", "medium", "malware.exe", 5001, "Malware detected").unwrap();
+    let a3 = alerts
+        .evaluate(
+            "rule_001",
+            "medium",
+            "malware.exe",
+            5001,
+            "Malware detected",
+        )
+        .unwrap();
     assert_eq!(a3.severity, "critical");
     assert_eq!(a3.count, 3);
     assert_eq!(a3.rule_id, "rule_001");
@@ -231,7 +262,13 @@ fn test_alert_dedup_and_escalation_to_critical() {
     assert_eq!(a3.pid, 5001);
 
     // Fourth hit: suppressed because count > 3, returns None
-    let a4 = alerts.evaluate("rule_001", "medium", "malware.exe", 5001, "Malware detected");
+    let a4 = alerts.evaluate(
+        "rule_001",
+        "medium",
+        "malware.exe",
+        5001,
+        "Malware detected",
+    );
     assert!(a4.is_none());
 }
 
@@ -256,11 +293,23 @@ fn test_full_pipeline_end_to_end_scenario() {
     let mut alert_events: Vec<String> = Vec::new();
 
     // Normal system activity
-    assert!(engine.check_process_event(1, 0, "svchost.exe", "").is_none());
-    assert!(engine.check_process_event(2, 0, "explorer.exe", "").is_none());
+    assert!(
+        engine
+            .check_process_event(1, 0, "svchost.exe", "")
+            .is_none()
+    );
+    assert!(
+        engine
+            .check_process_event(2, 0, "explorer.exe", "")
+            .is_none()
+    );
 
     // Chrome launching notepad is not suspicious
-    assert!(engine.check_process_chain(3, 1, "notepad.exe", "chrome.exe").is_none());
+    assert!(
+        engine
+            .check_process_chain(3, 1, "notepad.exe", "chrome.exe")
+            .is_none()
+    );
 
     // ── Step 2: WMI launches PowerShell (lateral movement) ──
     let action = engine
@@ -272,7 +321,13 @@ fn test_full_pipeline_end_to_end_scenario() {
 
     // Generate alert
     for a in &results {
-        if let Some(alert) = alerts.evaluate("chain_wmi", &a.severity, "powershell.exe", a.pid, "WMI spawned PowerShell") {
+        if let Some(alert) = alerts.evaluate(
+            "chain_wmi",
+            &a.severity,
+            "powershell.exe",
+            a.pid,
+            "WMI spawned PowerShell",
+        ) {
             alert_events.push(format!("{}/{}", alert.rule_id, alert.severity));
             assert_eq!(alert.severity, "high");
         }
@@ -323,8 +378,7 @@ fn test_full_pipeline_end_to_end_scenario() {
         .expect("should detect registry+file combo");
     assert_eq!(combo_action.action_type, "quarantine_file");
     assert_eq!(
-        combo_action.severity,
-        "critical",
+        combo_action.severity, "critical",
         "combo with recent registry write must be critical"
     );
     if let Some(alert) = alerts.evaluate(
@@ -446,12 +500,18 @@ fn test_case_insensitivity_across_all_paths() {
 
     // Suspicious process with different casing
     let action = engine.check_process_event(9002, 0, "PowerShell.EXE", "powershell.exe -enc abc");
-    assert!(action.is_some(), "casing should not matter for suspicious list");
+    assert!(
+        action.is_some(),
+        "casing should not matter for suspicious list"
+    );
     assert_eq!(action.unwrap().severity, "medium");
 
     // Spawn chain with different casing
     let action = engine.check_process_chain(9003, 0, "POWERSHELL.EXE", "WINWORD.EXE");
-    assert!(action.is_some(), "chain detection should be case-insensitive");
+    assert!(
+        action.is_some(),
+        "chain detection should be case-insensitive"
+    );
     assert_eq!(action.unwrap().severity, "high");
 
     // Registry persistence with different casing
@@ -459,7 +519,10 @@ fn test_case_insensitivity_across_all_paths() {
         r"hklm\software\microsoft\windows\currentversion\run\evil",
         9004,
     );
-    assert!(action.is_some(), "registry persistence should be case-insensitive");
+    assert!(
+        action.is_some(),
+        "registry persistence should be case-insensitive"
+    );
 }
 
 // ──────────────────────────────────────────────
@@ -471,7 +534,11 @@ fn test_policy_update_mid_session() {
     let mut engine = LocalDetectionEngine::new();
 
     // No IoCs loaded yet → no match
-    assert!(engine.check_process_event(10001, 0, "unknown.exe", "").is_none());
+    assert!(
+        engine
+            .check_process_event(10001, 0, "unknown.exe", "")
+            .is_none()
+    );
     assert_eq!(engine.ioc_count(), 0);
 
     // First policy sync adds IoCs
@@ -656,16 +723,43 @@ fn test_negative_cases_for_all_event_types() {
     let mut engine = LocalDetectionEngine::new();
 
     // Non-suspicious process, no IoC, no chain
-    assert!(engine.check_process_event(0, 0, "explorer.exe", "").is_none());
-    assert!(engine.check_process_chain(0, 0, "explorer.exe", "wininit.exe").is_none());
+    assert!(
+        engine
+            .check_process_event(0, 0, "explorer.exe", "")
+            .is_none()
+    );
+    assert!(
+        engine
+            .check_process_chain(0, 0, "explorer.exe", "wininit.exe")
+            .is_none()
+    );
 
     // No registry persistence
-    assert!(engine.check_registry_event(r"HKLM\SOFTWARE\Classes\.exe", 0).is_none());
-    assert!(engine.check_registry_event(r"HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\App", 0).is_none());
+    assert!(
+        engine
+            .check_registry_event(r"HKLM\SOFTWARE\Classes\.exe", 0)
+            .is_none()
+    );
+    assert!(
+        engine
+            .check_registry_event(
+                r"HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\App",
+                0
+            )
+            .is_none()
+    );
 
     // No IoC file match, no registry combo
-    assert!(engine.check_file_event("C:\\Windows\\System32\\calc.exe", 0).is_none());
-    assert!(engine.check_file_event("C:\\Users\\user\\AppData\\Local\\temp\\readme.txt", 0).is_none());
+    assert!(
+        engine
+            .check_file_event("C:\\Windows\\System32\\calc.exe", 0)
+            .is_none()
+    );
+    assert!(
+        engine
+            .check_file_event("C:\\Users\\user\\AppData\\Local\\temp\\readme.txt", 0)
+            .is_none()
+    );
 
     assert_eq!(engine.detection_count(), 0);
 }

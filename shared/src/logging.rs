@@ -1,20 +1,17 @@
-use tracing_subscriber::{
-    fmt,
-    prelude::*,
-    registry,
-    EnvFilter,
-};
-use tracing_appender::rolling;
 use serde_json::Value;
 use std::str::FromStr;
+use tracing_appender::rolling;
+use tracing_subscriber::{EnvFilter, fmt, prelude::*, registry};
 
 use crate::config::{LogFormat, LogRotation, LoggingConfig};
 
-pub fn init_logging(config: &LoggingConfig) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub fn init_logging(
+    config: &LoggingConfig,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     std::fs::create_dir_all(&config.directory)?;
 
-    let env_filter = EnvFilter::from_str(&config.level.to_string())
-        .unwrap_or_else(|_| EnvFilter::new("INFO"));
+    let env_filter =
+        EnvFilter::from_str(&config.level.to_string()).unwrap_or_else(|_| EnvFilter::new("INFO"));
 
     let fmt_layer = fmt::layer()
         .with_target(true)
@@ -39,9 +36,7 @@ pub fn init_logging(config: &LoggingConfig) -> Result<(), Box<dyn std::error::Er
                 .with_thread_ids(true)
                 .with_thread_names(true);
 
-            let json_stdout = fmt::layer()
-                .json()
-                .with_writer(std::io::stdout);
+            let json_stdout = fmt::layer().json().with_writer(std::io::stdout);
 
             registry()
                 .with(env_filter)
@@ -57,8 +52,7 @@ pub fn init_logging(config: &LoggingConfig) -> Result<(), Box<dyn std::error::Er
                 LogRotation::Never => rolling::never(&config.directory, "edr"),
             };
 
-            let text_file = fmt::layer()
-                .with_writer(file_appender);
+            let text_file = fmt::layer().with_writer(file_appender);
 
             registry()
                 .with(env_filter)
@@ -68,8 +62,12 @@ pub fn init_logging(config: &LoggingConfig) -> Result<(), Box<dyn std::error::Er
         }
     }
 
-    tracing::info!("logging initialized: level={}, format={:?}, dir={}", 
-        config.level, config.format, config.directory);
+    tracing::info!(
+        "logging initialized: level={}, format={:?}, dir={}",
+        config.level,
+        config.format,
+        config.directory
+    );
 
     Ok(())
 }

@@ -1,9 +1,9 @@
 use axum::{
-    extract::{Path, State},
     Extension, Json,
+    extract::{Path, State},
 };
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 
 use crate::handlers::require_perm;
@@ -23,15 +23,25 @@ pub async fn get_profile(
     Path(id): Path<String>,
 ) -> Result<Json<Value>, (axum::http::StatusCode, Json<Value>)> {
     let _ = auth;
-    let result = state.db.query_raw(
-        "SELECT profile_pc, profile_edr FROM endpoints WHERE id = ?1",
-        &[DbParam::Text(id.clone())],
-    ).await.map_err(|e| {
-        (axum::http::StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": format!("db error: {}", e)})))
-    })?;
+    let result = state
+        .db
+        .query_raw(
+            "SELECT profile_pc, profile_edr FROM endpoints WHERE id = ?1",
+            &[DbParam::Text(id.clone())],
+        )
+        .await
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": format!("db error: {}", e)})),
+            )
+        })?;
 
     let row = result.first().ok_or_else(|| {
-        (axum::http::StatusCode::NOT_FOUND, Json(json!({"error": "endpoint not found"})))
+        (
+            axum::http::StatusCode::NOT_FOUND,
+            Json(json!({"error": "endpoint not found"})),
+        )
     })?;
 
     Ok(Json(json!({
@@ -62,18 +72,21 @@ pub async fn set_profile(
     }
 
     if updates.is_empty() {
-        return Err((axum::http::StatusCode::BAD_REQUEST, Json(json!({"error": "no profile fields provided"}))));
+        return Err((
+            axum::http::StatusCode::BAD_REQUEST,
+            Json(json!({"error": "no profile fields provided"})),
+        ));
     }
 
     params.push(DbParam::Text(id.clone()));
 
-    let sql = format!(
-        "UPDATE endpoints SET {} WHERE id = ?",
-        updates.join(", ")
-    );
+    let sql = format!("UPDATE endpoints SET {} WHERE id = ?", updates.join(", "));
 
     state.db.execute(&sql, &params).await.map_err(|e| {
-        (axum::http::StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": format!("failed to update profile: {}", e)})))
+        (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"error": format!("failed to update profile: {}", e)})),
+        )
     })?;
 
     Ok(Json(json!({

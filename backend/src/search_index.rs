@@ -3,14 +3,14 @@
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
 use std::path::Path;
-use windows::core::PCWSTR;
 use windows::Win32::Foundation::{
     ERROR_ACCESS_DENIED, ERROR_FILE_NOT_FOUND, ERROR_PATH_NOT_FOUND, INVALID_HANDLE_VALUE,
 };
 use windows::Win32::Storage::FileSystem::{
-    FindClose, FindFirstFileW, FindNextFileW, FILE_ATTRIBUTE_DIRECTORY,
-    FILE_ATTRIBUTE_REPARSE_POINT, WIN32_FIND_DATAW,
+    FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_REPARSE_POINT, FindClose, FindFirstFileW,
+    FindNextFileW, WIN32_FIND_DATAW,
 };
+use windows::core::PCWSTR;
 
 /// Enumerate all files under the given directories using Win32 FindFirstFile/FindNextFile.
 /// Uses the native Windows file enumeration API (not the Search Index).
@@ -57,9 +57,7 @@ fn enumerate_directory(dir: &Path, results: &mut Vec<String>, depth: u32) {
 
     loop {
         let name = &find_data.cFileName;
-        if name[0] == b'.' as u16
-            && (name[1] == 0 || (name[1] == b'.' as u16 && name[2] == 0))
-        {
+        if name[0] == b'.' as u16 && (name[1] == 0 || (name[1] == b'.' as u16 && name[2] == 0)) {
             if unsafe { FindNextFileW(handle, &mut find_data) }.is_err() {
                 break;
             }

@@ -31,6 +31,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: stable
+          cache-dependency-path: scanner/go.sum
       - run: go vet ./...
         working-directory: scanner
 
@@ -59,6 +60,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: stable
+          cache-dependency-path: scanner/go.sum
       - run: go test ./... -v -count=1
         working-directory: scanner
 
@@ -77,6 +79,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo install cargo-audit cargo-deny
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit,cargo-deny
       - run: cargo audit
       - run: cargo deny check

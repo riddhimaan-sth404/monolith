@@ -1,10 +1,10 @@
-use std::path::Path;
-use std::sync::Arc;
 use monolith_shared::error::{EdrError, Result};
 use monolith_shared::license::{self, LicenseBundle, LicenseConfig};
-use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, AES_256_GCM};
+use ring::aead::{AES_256_GCM, Aad, LessSafeKey, Nonce, UnboundKey};
 use ring::digest;
 use ring::rand::{SecureRandom, SystemRandom};
+use std::path::Path;
+use std::sync::Arc;
 
 const LICENSED_CONFIG_PATH: &str = "data/licensed_config.bin";
 
@@ -17,14 +17,13 @@ pub fn extract_config(bundle: &LicenseBundle) -> LicenseConfig {
 }
 
 pub fn save_licensed_config(config: &LicenseConfig) -> Result<()> {
-    let json = serde_json::to_vec(config)
-        .map_err(|e| EdrError::SerializationError(e.to_string()))?;
+    let json =
+        serde_json::to_vec(config).map_err(|e| EdrError::SerializationError(e.to_string()))?;
     let encrypted = encrypt_machine_local(&json)?;
     if let Some(parent) = Path::new(LICENSED_CONFIG_PATH).parent() {
         std::fs::create_dir_all(parent).ok();
     }
-    std::fs::write(LICENSED_CONFIG_PATH, &encrypted)
-        .map_err(|e| EdrError::IoError(e))?;
+    std::fs::write(LICENSED_CONFIG_PATH, &encrypted).map_err(|e| EdrError::IoError(e))?;
     Ok(())
 }
 
@@ -39,10 +38,7 @@ pub fn load_licensed_config() -> Result<Option<LicenseConfig>> {
     Ok(Some(config))
 }
 
-pub fn apply_to_appconfig(
-    config: &mut crate::config::AppConfig,
-    license_config: &LicenseConfig,
-) {
+pub fn apply_to_appconfig(config: &mut crate::config::AppConfig, license_config: &LicenseConfig) {
     if !license_config.jwt_secret.is_empty() {
         config.auth.jwt_secret = license_config.jwt_secret.clone();
     }
@@ -69,7 +65,13 @@ pub fn apply_to_appconfig(
 
 fn derive_machine_key() -> Result<LessSafeKey> {
     let mut seed = Vec::new();
-    for var in &["COMPUTERNAME", "PROCESSOR_IDENTIFIER", "PROCESSOR_LEVEL", "NUMBER_OF_PROCESSORS", "OS"] {
+    for var in &[
+        "COMPUTERNAME",
+        "PROCESSOR_IDENTIFIER",
+        "PROCESSOR_LEVEL",
+        "NUMBER_OF_PROCESSORS",
+        "OS",
+    ] {
         if let Ok(val) = std::env::var(var) {
             seed.extend_from_slice(val.as_bytes());
         }
@@ -109,7 +111,8 @@ fn decrypt_machine_local(ciphertext: &[u8]) -> Result<Vec<u8>> {
     let nonce = Nonce::assume_unique_for_key(nonce_bytes);
 
     let mut in_out = ciphertext[12..].to_vec();
-    let plaintext = key.open_in_place(nonce, Aad::empty(), &mut in_out)
+    let plaintext = key
+        .open_in_place(nonce, Aad::empty(), &mut in_out)
         .map_err(|_| EdrError::CryptoError("decryption failed (wrong machine?)".into()))?;
     Ok(plaintext.to_vec())
 }
@@ -118,14 +121,21 @@ pub async fn activate_with_license(
     state: Arc<crate::server::AppState>,
     license_content: &str,
 ) -> std::result::Result<LicenseBundle, (axum::http::StatusCode, axum::Json<serde_json::Value>)> {
-    let bundle = license::parse_license_file(license_content)
-        .map_err(|e| {
-            (axum::http::StatusCode::BAD_REQUEST, axum::Json(serde_json::json!({"error": format!("invalid license: {}", e)})))
-        })?;
+    let bundle = license::parse_license_file(license_content).map_err(|e| {
+        (
+            axum::http::StatusCode::BAD_REQUEST,
+            axum::Json(serde_json::json!({"error": format!("invalid license: {}", e)})),
+        )
+    })?;
 
     let config = extract_config(&bundle);
     save_licensed_config(&config).map_err(|e| {
-        (axum::http::StatusCode::INTERNAL_SERVER_ERROR, axum::Json(serde_json::json!({"error": format!("failed to save license config: {}", e)})))
+        (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            axum::Json(
+                serde_json::json!({"error": format!("failed to save license config: {}", e)}),
+            ),
+        )
     })?;
 
     // Apply config to AppState

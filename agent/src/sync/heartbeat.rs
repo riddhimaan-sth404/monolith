@@ -1,8 +1,8 @@
 #![allow(unsafe_code)]
 #![allow(missing_docs)]
 
+use serde_json::{Value, json};
 use std::mem;
-use serde_json::{json, Value};
 
 pub struct HeartbeatSender;
 
@@ -13,7 +13,10 @@ impl HeartbeatSender {
 
     pub async fn send(&self) -> monolith_shared::error::Result<bool> {
         let heartbeat = collect_system_status(None);
-        tracing::debug!("sending heartbeat: {}", serde_json::to_string(&heartbeat).unwrap_or_default());
+        tracing::debug!(
+            "sending heartbeat: {}",
+            serde_json::to_string(&heartbeat).unwrap_or_default()
+        );
         Ok(true)
     }
 }
@@ -80,8 +83,8 @@ fn get_memory_usage() -> f64 {
 fn get_disk_free() -> u64 {
     #[cfg(windows)]
     {
-        use windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceExA;
         use std::ffi::CString;
+        use windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceExA;
 
         let path = CString::new("C:\\").unwrap();
         let mut free_bytes: u64 = 0;
@@ -106,10 +109,12 @@ fn get_disk_free() -> u64 {
 fn is_driver_loaded() -> bool {
     #[cfg(windows)]
     {
-        use windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE;
-        use windows_sys::Win32::Foundation::GENERIC_READ;
-        use windows_sys::Win32::Storage::FileSystem::{CreateFileA, FILE_SHARE_READ, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL};
         use std::ffi::CString;
+        use windows_sys::Win32::Foundation::GENERIC_READ;
+        use windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE;
+        use windows_sys::Win32::Storage::FileSystem::{
+            CreateFileA, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ, OPEN_EXISTING,
+        };
 
         let path = CString::new("\\\\.\\EDR").unwrap();
         let handle = unsafe {
@@ -128,7 +133,9 @@ fn is_driver_loaded() -> bool {
             return false;
         }
 
-        unsafe { windows_sys::Win32::Foundation::CloseHandle(handle); }
+        unsafe {
+            windows_sys::Win32::Foundation::CloseHandle(handle);
+        }
         true
     }
     #[cfg(not(windows))]
@@ -159,9 +166,8 @@ fn parse_driver_stats(raw: &[u8]) -> (u64, u64, String) {
         return (0, 0, String::new());
     }
 
-    let stats: DriverStats = unsafe {
-        std::ptr::read_unaligned(raw.as_ptr() as *const DriverStats)
-    };
+    let stats: DriverStats =
+        unsafe { std::ptr::read_unaligned(raw.as_ptr() as *const DriverStats) };
     let major = stats.driver_version_major;
     let minor = stats.driver_version_minor;
     let patch = stats.driver_version_patch;

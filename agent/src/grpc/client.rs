@@ -1,10 +1,10 @@
 use monolith_protobuf::proto::v1::endpoint_service_client::EndpointServiceClient;
 use monolith_protobuf::proto::v1::{self as pb};
 use monolith_shared::error::{EdrError, Result};
+use tonic::Streaming;
+use tonic::transport::Certificate;
 use tonic::transport::Channel;
 use tonic::transport::ClientTlsConfig;
-use tonic::transport::Certificate;
-use tonic::Streaming;
 
 pub struct GrpcClient {
     server_address: String,
@@ -44,7 +44,12 @@ impl GrpcClient {
         req
     }
 
-    pub fn with_mtls(address: &str, ca_cert_pem: Vec<u8>, cert_pem: Vec<u8>, key_pem: Vec<u8>) -> Self {
+    pub fn with_mtls(
+        address: &str,
+        ca_cert_pem: Vec<u8>,
+        cert_pem: Vec<u8>,
+        key_pem: Vec<u8>,
+    ) -> Self {
         Self {
             server_address: address.to_string(),
             connected: false,
@@ -60,7 +65,9 @@ impl GrpcClient {
     pub async fn connect(&mut self) -> Result<()> {
         tracing::info!("connecting to backend gRPC: {}", self.server_address);
 
-        let address = if self.server_address.starts_with("http://") || self.server_address.starts_with("https://") {
+        let address = if self.server_address.starts_with("http://")
+            || self.server_address.starts_with("https://")
+        {
             self.server_address.clone()
         } else {
             format!("https://{}", self.server_address)
@@ -71,18 +78,24 @@ impl GrpcClient {
             .ca_certificate(ca_cert)
             .domain_name("localhost");
 
-        if let (Some(cert_pem), Some(key_pem)) = (self.client_cert_pem.as_ref(), self.client_key_pem.as_ref()) {
+        if let (Some(cert_pem), Some(key_pem)) =
+            (self.client_cert_pem.as_ref(), self.client_key_pem.as_ref())
+        {
             let identity = tonic::transport::Identity::from_pem(cert_pem.clone(), key_pem.clone());
             tls = tls.identity(identity);
         }
 
         let channel = Channel::from_shared(address.clone())
-            .map_err(|e| EdrError::ConnectionError(format!("invalid gRPC address {}: {}", address, e)))?
+            .map_err(|e| {
+                EdrError::ConnectionError(format!("invalid gRPC address {}: {}", address, e))
+            })?
             .tls_config(tls)
             .map_err(|e| EdrError::ConnectionError(format!("TLS config error: {}", e)))?
             .connect()
             .await
-            .map_err(|e| EdrError::ConnectionError(format!("failed to connect to {}: {}", address, e)))?;
+            .map_err(|e| {
+                EdrError::ConnectionError(format!("failed to connect to {}: {}", address, e))
+            })?;
 
         self.client = Some(EndpointServiceClient::new(channel));
         self.connected = true;
@@ -90,7 +103,12 @@ impl GrpcClient {
         Ok(())
     }
 
-    pub async fn register(&mut self, hostname: &str, os_version: &str, agent_version: &str) -> Result<String> {
+    pub async fn register(
+        &mut self,
+        hostname: &str,
+        os_version: &str,
+        agent_version: &str,
+    ) -> Result<String> {
         let request = tonic::Request::new(pb::RegisterRequest {
             hostname: hostname.to_string(),
             os_version: os_version.to_string(),
@@ -111,7 +129,8 @@ impl GrpcClient {
         if let Some(uuid) = reply.endpoint_id {
             let id_str = uuid::Uuid::from_bytes(uuid.value.try_into().map_err(|_| {
                 EdrError::ConnectionError("invalid endpoint UUID from server".into())
-            })?).to_string();
+            })?)
+            .to_string();
             self.endpoint_id = id_str;
         }
 
@@ -141,25 +160,55 @@ impl GrpcClient {
         let endpoint_id = if self.endpoint_id.is_empty() {
             None
         } else {
-            uuid::Uuid::parse_str(&self.endpoint_id).ok().map(|id| pb::Uuid {
-                value: id.as_bytes().to_vec(),
-            })
+            uuid::Uuid::parse_str(&self.endpoint_id)
+                .ok()
+                .map(|id| pb::Uuid {
+                    value: id.as_bytes().to_vec(),
+                })
         };
 
         let request = self.auth_req(pb::HeartbeatRequest {
             endpoint_id,
             timestamp: None,
             status: 0,
-            cpu_usage: heartbeat.get("cpu_usage").and_then(|v| v.as_f64()).unwrap_or(0.0),
-            memory_usage: heartbeat.get("memory_usage").and_then(|v| v.as_f64()).unwrap_or(0.0),
-            disk_free_bytes: heartbeat.get("disk_free_bytes").and_then(|v| v.as_u64()).unwrap_or(0),
-            event_queue_depth: heartbeat.get("event_queue_depth").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
-            driver_loaded: heartbeat.get("driver_loaded").and_then(|v| v.as_bool()).unwrap_or(false),
-            scanner_connected: heartbeat.get("scanner_connected").and_then(|v| v.as_bool()).unwrap_or(false),
-            driver_events_collected: heartbeat.get("driver_events_collected").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
-            driver_events_dropped: heartbeat.get("driver_events_dropped").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+            cpu_usage: heartbeat
+                .get("cpu_usage")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0),
+            memory_usage: heartbeat
+                .get("memory_usage")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.0),
+            disk_free_bytes: heartbeat
+                .get("disk_free_bytes")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0),
+            event_queue_depth: heartbeat
+                .get("event_queue_depth")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as u32,
+            driver_loaded: heartbeat
+                .get("driver_loaded")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false),
+            scanner_connected: heartbeat
+                .get("scanner_connected")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false),
+            driver_events_collected: heartbeat
+                .get("driver_events_collected")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as u32,
+            driver_events_dropped: heartbeat
+                .get("driver_events_dropped")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as u32,
             agent_version: env!("CARGO_PKG_VERSION").to_string(),
-            driver_version: heartbeat.get("driver_version").and_then(|v| v.as_str()).unwrap_or_default().to_string(),
+            driver_version: heartbeat
+                .get("driver_version")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string(),
             scanner_version: String::new(),
         });
 
@@ -187,18 +236,23 @@ impl GrpcClient {
         let endpoint_uuid = if self.endpoint_id.is_empty() {
             None
         } else {
-            uuid::Uuid::parse_str(&self.endpoint_id).ok().map(|id| pb::Uuid {
-                value: id.as_bytes().to_vec(),
-            })
+            uuid::Uuid::parse_str(&self.endpoint_id)
+                .ok()
+                .map(|id| pb::Uuid {
+                    value: id.as_bytes().to_vec(),
+                })
         };
 
-        let events_clone: Vec<pb::Event> = events.iter().map(|evt| {
-            let mut e = evt.clone();
-            if e.endpoint_id.is_none() {
-                e.endpoint_id = endpoint_uuid.clone();
-            }
-            e
-        }).collect();
+        let events_clone: Vec<pb::Event> = events
+            .iter()
+            .map(|evt| {
+                let mut e = evt.clone();
+                if e.endpoint_id.is_none() {
+                    e.endpoint_id = endpoint_uuid.clone();
+                }
+                e
+            })
+            .collect();
         let stream = futures::stream::iter(events_clone.into_iter());
         let req = self.auth_req(stream);
         let response = self
@@ -218,9 +272,13 @@ impl GrpcClient {
         }
 
         let request = self.auth_req(pb::PolicyRequest {
-            endpoint_id: self.endpoint_id.parse().ok().map(|id: uuid::Uuid| pb::Uuid {
-                value: id.into_bytes().to_vec(),
-            }),
+            endpoint_id: self
+                .endpoint_id
+                .parse()
+                .ok()
+                .map(|id: uuid::Uuid| pb::Uuid {
+                    value: id.into_bytes().to_vec(),
+                }),
             current_policy_version: String::new(),
         });
 
@@ -241,9 +299,13 @@ impl GrpcClient {
         }
 
         let request = self.auth_req(pb::ActionRequest {
-            endpoint_id: self.endpoint_id.parse().ok().map(|id: uuid::Uuid| pb::Uuid {
-                value: id.into_bytes().to_vec(),
-            }),
+            endpoint_id: self
+                .endpoint_id
+                .parse()
+                .ok()
+                .map(|id: uuid::Uuid| pb::Uuid {
+                    value: id.into_bytes().to_vec(),
+                }),
             last_action_id: String::new(),
         });
 
@@ -281,9 +343,13 @@ impl GrpcClient {
 
         let request = self.auth_req(pb::ActionStatus {
             action_id: action_id.to_string(),
-            endpoint_id: self.endpoint_id.parse().ok().map(|id: uuid::Uuid| pb::Uuid {
-                value: id.into_bytes().to_vec(),
-            }),
+            endpoint_id: self
+                .endpoint_id
+                .parse()
+                .ok()
+                .map(|id: uuid::Uuid| pb::Uuid {
+                    value: id.into_bytes().to_vec(),
+                }),
             r#type: pb::ResponseActionType::ResponseActionUnspecified as i32,
             state: state_val,
             result_message: String::new(),

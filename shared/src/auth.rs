@@ -1,6 +1,6 @@
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use once_cell::sync::Lazy;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum Role {
@@ -210,9 +210,10 @@ impl AuthContext {
         if self.check_permission(permission) {
             Ok(())
         } else {
-            Err(crate::error::EdrError::AuthorizationFailed(
-                format!("missing required permission: {:?}", permission),
-            ))
+            Err(crate::error::EdrError::AuthorizationFailed(format!(
+                "missing required permission: {:?}",
+                permission
+            )))
         }
     }
 }
@@ -328,31 +329,103 @@ mod tests {
 
     #[test]
     fn test_permission_from_str() {
-        assert_eq!(Permission::from_str("user:read"), Some(Permission::UserRead));
-        assert_eq!(Permission::from_str("user:write"), Some(Permission::UserWrite));
-        assert_eq!(Permission::from_str("user:delete"), Some(Permission::UserDelete));
-        assert_eq!(Permission::from_str("endpoint:read"), Some(Permission::EndpointRead));
-        assert_eq!(Permission::from_str("endpoint:write"), Some(Permission::EndpointWrite));
-        assert_eq!(Permission::from_str("endpoint:isolate"), Some(Permission::EndpointIsolate));
-        assert_eq!(Permission::from_str("alert:read"), Some(Permission::AlertRead));
-        assert_eq!(Permission::from_str("alert:write"), Some(Permission::AlertWrite));
-        assert_eq!(Permission::from_str("event:read"), Some(Permission::EventRead));
+        assert_eq!(
+            Permission::from_str("user:read"),
+            Some(Permission::UserRead)
+        );
+        assert_eq!(
+            Permission::from_str("user:write"),
+            Some(Permission::UserWrite)
+        );
+        assert_eq!(
+            Permission::from_str("user:delete"),
+            Some(Permission::UserDelete)
+        );
+        assert_eq!(
+            Permission::from_str("endpoint:read"),
+            Some(Permission::EndpointRead)
+        );
+        assert_eq!(
+            Permission::from_str("endpoint:write"),
+            Some(Permission::EndpointWrite)
+        );
+        assert_eq!(
+            Permission::from_str("endpoint:isolate"),
+            Some(Permission::EndpointIsolate)
+        );
+        assert_eq!(
+            Permission::from_str("alert:read"),
+            Some(Permission::AlertRead)
+        );
+        assert_eq!(
+            Permission::from_str("alert:write"),
+            Some(Permission::AlertWrite)
+        );
+        assert_eq!(
+            Permission::from_str("event:read"),
+            Some(Permission::EventRead)
+        );
         assert_eq!(Permission::from_str("ioc:read"), Some(Permission::IocRead));
-        assert_eq!(Permission::from_str("ioc:write"), Some(Permission::IocWrite));
-        assert_eq!(Permission::from_str("ioc:delete"), Some(Permission::IocDelete));
-        assert_eq!(Permission::from_str("policy:read"), Some(Permission::PolicyRead));
-        assert_eq!(Permission::from_str("policy:write"), Some(Permission::PolicyWrite));
-        assert_eq!(Permission::from_str("policy:delete"), Some(Permission::PolicyDelete));
-        assert_eq!(Permission::from_str("scan:read"), Some(Permission::ScanRead));
-        assert_eq!(Permission::from_str("scan:write"), Some(Permission::ScanWrite));
-        assert_eq!(Permission::from_str("scan:cancel"), Some(Permission::ScanCancel));
-        assert_eq!(Permission::from_str("report:read"), Some(Permission::ReportRead));
-        assert_eq!(Permission::from_str("report:generate"), Some(Permission::ReportGenerate));
-        assert_eq!(Permission::from_str("response:execute"), Some(Permission::ResponseExecute));
-        assert_eq!(Permission::from_str("settings:read"), Some(Permission::SettingsRead));
-        assert_eq!(Permission::from_str("settings:write"), Some(Permission::SettingsWrite));
-        assert_eq!(Permission::from_str("audit:read"), Some(Permission::AuditLogRead));
-        assert_eq!(Permission::from_str("license:manage"), Some(Permission::LicenseManage));
+        assert_eq!(
+            Permission::from_str("ioc:write"),
+            Some(Permission::IocWrite)
+        );
+        assert_eq!(
+            Permission::from_str("ioc:delete"),
+            Some(Permission::IocDelete)
+        );
+        assert_eq!(
+            Permission::from_str("policy:read"),
+            Some(Permission::PolicyRead)
+        );
+        assert_eq!(
+            Permission::from_str("policy:write"),
+            Some(Permission::PolicyWrite)
+        );
+        assert_eq!(
+            Permission::from_str("policy:delete"),
+            Some(Permission::PolicyDelete)
+        );
+        assert_eq!(
+            Permission::from_str("scan:read"),
+            Some(Permission::ScanRead)
+        );
+        assert_eq!(
+            Permission::from_str("scan:write"),
+            Some(Permission::ScanWrite)
+        );
+        assert_eq!(
+            Permission::from_str("scan:cancel"),
+            Some(Permission::ScanCancel)
+        );
+        assert_eq!(
+            Permission::from_str("report:read"),
+            Some(Permission::ReportRead)
+        );
+        assert_eq!(
+            Permission::from_str("report:generate"),
+            Some(Permission::ReportGenerate)
+        );
+        assert_eq!(
+            Permission::from_str("response:execute"),
+            Some(Permission::ResponseExecute)
+        );
+        assert_eq!(
+            Permission::from_str("settings:read"),
+            Some(Permission::SettingsRead)
+        );
+        assert_eq!(
+            Permission::from_str("settings:write"),
+            Some(Permission::SettingsWrite)
+        );
+        assert_eq!(
+            Permission::from_str("audit:read"),
+            Some(Permission::AuditLogRead)
+        );
+        assert_eq!(
+            Permission::from_str("license:manage"),
+            Some(Permission::LicenseManage)
+        );
         assert_eq!(Permission::from_str("invalid"), None);
     }
 

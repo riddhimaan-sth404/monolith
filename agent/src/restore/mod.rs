@@ -10,20 +10,24 @@
 
 #![allow(unsafe_code)]
 
-pub mod vss;
-pub mod scheduler;
 pub mod boot_revert;
+pub mod scheduler;
+pub mod vss;
 
 use std::io::Result;
 
+use crate::driver::{DriverHandle, ioctl};
+use hmac::{Hmac, Mac};
 use monolith_shared::license;
 use sha2::Sha256;
-use hmac::{Hmac, Mac};
-use crate::driver::{ioctl, DriverHandle};
 
 type HmacSha256 = Hmac<Sha256>;
 
-fn send_ioctl(handle: windows_sys::Win32::Foundation::HANDLE, code: u32, input: Option<&[u8]>) -> Result<()> {
+fn send_ioctl(
+    handle: windows_sys::Win32::Foundation::HANDLE,
+    code: u32,
+    input: Option<&[u8]>,
+) -> Result<()> {
     let mut bytes_returned: u32 = 0;
     let result = unsafe {
         windows_sys::Win32::System::IO::DeviceIoControl(
@@ -89,7 +93,8 @@ pub fn activate_restore(handle: &DriverHandle) -> Result<bool> {
         }
     };
 
-    let hmac_key_hex = match payload_json.get("restore_activation_key_hex")
+    let hmac_key_hex = match payload_json
+        .get("restore_activation_key_hex")
         .and_then(|v| v.as_str())
     {
         Some(h) => h,
@@ -137,7 +142,11 @@ pub fn activate_restore(handle: &DriverHandle) -> Result<bool> {
 }
 
 /// Claim a partition for snapshot storage.
-pub fn claim_partition(handle: &DriverHandle, drive_number: u32, partition_number: u32) -> Result<bool> {
+pub fn claim_partition(
+    handle: &DriverHandle,
+    drive_number: u32,
+    partition_number: u32,
+) -> Result<bool> {
     let drv_handle = handle.as_raw_handle();
 
     #[repr(C, packed)]
@@ -155,7 +164,11 @@ pub fn claim_partition(handle: &DriverHandle, drive_number: u32, partition_numbe
         std::slice::from_raw_parts(input_ptr, std::mem::size_of::<ClaimInput>())
     };
 
-    match send_ioctl(drv_handle, ioctl::IOCTL_EDR_RESTORE_CLAIM_PARTITION, Some(input_bytes)) {
+    match send_ioctl(
+        drv_handle,
+        ioctl::IOCTL_EDR_RESTORE_CLAIM_PARTITION,
+        Some(input_bytes),
+    ) {
         Ok(_) => {
             tracing::info!("claimed partition {}/{}", drive_number, partition_number);
             Ok(true)

@@ -1,15 +1,17 @@
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use tokio::sync::mpsc;
-use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::StreamExt;
+use tokio_stream::wrappers::ReceiverStream;
 use tonic::{Request, Response, Status};
 use tracing::info;
 
 use crate::config::AppConfig;
 use crate::server::AppState;
 use monolith_protobuf::proto::v1 as pb;
-use monolith_protobuf::proto::v1::endpoint_service_server::{EndpointService, EndpointServiceServer};
+use monolith_protobuf::proto::v1::endpoint_service_server::{
+    EndpointService, EndpointServiceServer,
+};
 use monolith_protobuf::proto::v1::scanner_service_server::{ScannerService, ScannerServiceServer};
 use monolith_shared::db::DbParam;
 use monolith_shared::error::EdrError;
@@ -27,21 +29,25 @@ pub async fn start_grpc_server(
     let key = tokio::fs::read(&config.tls.key_path).await?;
     let identity = tonic::transport::Identity::from_pem(cert, key);
 
-    let jwt_manager = Arc::new(config.auth.build_jwt_manager()
-        .map_err(|e| anyhow::anyhow!("failed to build JWT manager for gRPC: {}", e))?);
+    let jwt_manager = Arc::new(
+        config
+            .auth
+            .build_jwt_manager()
+            .map_err(|e| anyhow::anyhow!("failed to build JWT manager for gRPC: {}", e))?,
+    );
     let jwt_for_scanner = jwt_manager.clone();
 
     let scanner_interceptor = move |req: Request<()>| {
-        let token = req.metadata().get("authorization")
+        let token = req
+            .metadata()
+            .get("authorization")
             .and_then(|v| v.to_str().ok())
             .and_then(|v| v.strip_prefix("Bearer "))
             .ok_or_else(|| Status::unauthenticated("missing authorization header"))?;
 
-        jwt_for_scanner.validate_token(token).map_err(|e| {
-            match e {
-                EdrError::TokenExpired => Status::unauthenticated("token expired"),
-                _ => Status::unauthenticated("invalid token"),
-            }
+        jwt_for_scanner.validate_token(token).map_err(|e| match e {
+            EdrError::TokenExpired => Status::unauthenticated("token expired"),
+            _ => Status::unauthenticated("invalid token"),
         })?;
 
         Ok(req)
@@ -49,8 +55,14 @@ pub async fn start_grpc_server(
 
     tonic::transport::Server::builder()
         .tls_config(tonic::transport::ServerTlsConfig::new().identity(identity))?
-        .add_service(EndpointServiceServer::new(EndpointServiceImpl::new(state.clone(), jwt_manager)))
-        .add_service(ScannerServiceServer::with_interceptor(ScannerServiceImpl, scanner_interceptor))
+        .add_service(EndpointServiceServer::new(EndpointServiceImpl::new(
+            state.clone(),
+            jwt_manager,
+        )))
+        .add_service(ScannerServiceServer::with_interceptor(
+            ScannerServiceImpl,
+            scanner_interceptor,
+        ))
         .serve(addr)
         .await?;
 
@@ -70,16 +82,18 @@ impl EndpointServiceImpl {
     }
 
     fn check_auth<T>(&self, req: &Request<T>) -> Result<(), Status> {
-        let token = req.metadata().get("authorization")
+        let token = req
+            .metadata()
+            .get("authorization")
             .and_then(|v| v.to_str().ok())
             .and_then(|v| v.strip_prefix("Bearer "))
             .ok_or_else(|| Status::unauthenticated("missing authorization header"))?;
-        self.jwt_manager.validate_token(token).map_err(|e| {
-            match e {
+        self.jwt_manager
+            .validate_token(token)
+            .map_err(|e| match e {
                 EdrError::TokenExpired => Status::unauthenticated("token expired"),
                 _ => Status::unauthenticated("invalid token"),
-            }
-        })?;
+            })?;
         Ok(())
     }
 }
@@ -110,14 +124,23 @@ impl EndpointService for EndpointServiceImpl {
             ],
         ).await;
 
-        let api_token = self.jwt_manager
+        let api_token = self
+            .jwt_manager
             .issue_token(&endpoint_id, &hostname, "endpoint")
             .unwrap_or_default();
 
         let now = chrono::Utc::now();
-        let ts = prost_types::Timestamp { seconds: now.timestamp(), nanos: now.timestamp_subsec_nanos() as i32 };
+        let ts = prost_types::Timestamp {
+            seconds: now.timestamp(),
+            nanos: now.timestamp_subsec_nanos() as i32,
+        };
         Ok(Response::new(pb::RegisterResponse {
-            endpoint_id: Some(pb::Uuid { value: uuid::Uuid::parse_str(&endpoint_id).unwrap_or_default().into_bytes().to_vec() }),
+            endpoint_id: Some(pb::Uuid {
+                value: uuid::Uuid::parse_str(&endpoint_id)
+                    .unwrap_or_default()
+                    .into_bytes()
+                    .to_vec(),
+            }),
             api_token,
             registered_at: Some(ts),
         }))
@@ -129,12 +152,17 @@ impl EndpointService for EndpointServiceImpl {
     ) -> Result<Response<pb::HeartbeatResponse>, Status> {
         self.check_auth(&request)?;
         let req = request.into_inner();
-        let endpoint_id_str = req.endpoint_id
+        let endpoint_id_str = req
+            .endpoint_id
             .as_ref()
             .map(|u| uuid_from_proto(u.clone()).to_string())
             .unwrap_or_default();
 
-        let telemetry_state = if req.driver_loaded { "healthy" } else { "blackout" };
+        let telemetry_state = if req.driver_loaded {
+            "healthy"
+        } else {
+            "blackout"
+        };
         let signature_status = "valid";
         let heartbeat_id = uuid::Uuid::new_v4().to_string();
         let timestamp_str = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
@@ -154,13 +182,20 @@ impl EndpointService for EndpointServiceImpl {
             ]
         ).await;
 
-        let _ = self.state.db.execute(
-            "UPDATE endpoints SET last_seen = datetime('now'), status = 'online' WHERE id = ?1",
-            &[DbParam::Text(endpoint_id_str)],
-        ).await;
+        let _ = self
+            .state
+            .db
+            .execute(
+                "UPDATE endpoints SET last_seen = datetime('now'), status = 'online' WHERE id = ?1",
+                &[DbParam::Text(endpoint_id_str)],
+            )
+            .await;
 
         let now = chrono::Utc::now();
-        let ts = prost_types::Timestamp { seconds: now.timestamp(), nanos: now.timestamp_subsec_nanos() as i32 };
+        let ts = prost_types::Timestamp {
+            seconds: now.timestamp(),
+            nanos: now.timestamp_subsec_nanos() as i32,
+        };
         Ok(Response::new(pb::HeartbeatResponse {
             ack: true,
             server_time: Some(ts),
@@ -188,7 +223,8 @@ impl EndpointService for EndpointServiceImpl {
                     let data = extract_event_data(&evt);
                     let data_str = serde_json::to_string(&data).unwrap_or_default();
 
-                    let endpoint_id = evt.endpoint_id
+                    let endpoint_id = evt
+                        .endpoint_id
                         .map(|u| uuid_from_proto(u).to_string())
                         .unwrap_or_default();
                     if !endpoint_id.is_empty() {
@@ -217,11 +253,15 @@ impl EndpointService for EndpointServiceImpl {
                     match result {
                         Ok(_) => {
                             accepted += 1;
-                            self.state.metrics.events_ingested.fetch_add(1, Ordering::Relaxed);
+                            self.state
+                                .metrics
+                                .events_ingested
+                                .fetch_add(1, Ordering::Relaxed);
 
                             // Run detection + auto-response on stored event
                             if let Some(ds) = self.state.detection_service.get() {
-                                let _ = ds.process_event(&data, &endpoint_id, &*self.state.db).await;
+                                let _ =
+                                    ds.process_event(&data, &endpoint_id, &*self.state.db).await;
                             }
                         }
                         Err(e) => {
@@ -250,18 +290,43 @@ impl EndpointService for EndpointServiceImpl {
     ) -> Result<Response<pb::PolicyResponse>, Status> {
         self.check_auth(&request)?;
         let _req = request.into_inner();
-        let policies = self.state.db.query_value(
-            "SELECT id, name, version, rules, settings FROM policies WHERE active = 1 LIMIT 1",
-            &[],
-        ).await.map_err(|e| Status::internal(format!("db error: {}", e)))?;
+        let policies = self
+            .state
+            .db
+            .query_value(
+                "SELECT id, name, version, rules, settings FROM policies WHERE active = 1 LIMIT 1",
+                &[],
+            )
+            .await
+            .map_err(|e| Status::internal(format!("db error: {}", e)))?;
 
         let policy = policies.into_iter().next();
         let now = chrono::Utc::now();
-        let ts = prost_types::Timestamp { seconds: now.timestamp(), nanos: now.timestamp_subsec_nanos() as i32 };
+        let ts = prost_types::Timestamp {
+            seconds: now.timestamp(),
+            nanos: now.timestamp_subsec_nanos() as i32,
+        };
         Ok(Response::new(pb::PolicyResponse {
-            policy_id: policy.as_ref().and_then(|p| p.get("id").and_then(|v| v.as_str()).map(|s| s.to_string())).unwrap_or_default(),
-            policy_version: policy.as_ref().and_then(|p| p.get("version").and_then(|v| v.as_str()).map(|s| s.to_string())).unwrap_or_default(),
-            policy_content: policy.as_ref().and_then(|p| p.get("rules").and_then(|v| v.as_str()).map(|s| s.as_bytes().to_vec())).unwrap_or_default(),
+            policy_id: policy
+                .as_ref()
+                .and_then(|p| p.get("id").and_then(|v| v.as_str()).map(|s| s.to_string()))
+                .unwrap_or_default(),
+            policy_version: policy
+                .as_ref()
+                .and_then(|p| {
+                    p.get("version")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string())
+                })
+                .unwrap_or_default(),
+            policy_content: policy
+                .as_ref()
+                .and_then(|p| {
+                    p.get("rules")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.as_bytes().to_vec())
+                })
+                .unwrap_or_default(),
             updated_at: Some(ts),
         }))
     }
@@ -273,7 +338,8 @@ impl EndpointService for EndpointServiceImpl {
         self.check_auth(&request)?;
         let alert = request.into_inner();
         let alert_id = uuid::Uuid::new_v4().to_string();
-        let endpoint_id_str = alert.endpoint_id
+        let endpoint_id_str = alert
+            .endpoint_id
             .as_ref()
             .map(|u| uuid_from_proto(u.clone()).to_string())
             .unwrap_or_default();
@@ -288,20 +354,27 @@ impl EndpointService for EndpointServiceImpl {
 
         let alert_id_clone = alert_id.clone();
         let title_clone = alert.title.clone();
-        let _ = self.state.db.execute(
-            "INSERT INTO alerts (id, endpoint_id, severity, title, description, score, status)
+        let _ = self
+            .state
+            .db
+            .execute(
+                "INSERT INTO alerts (id, endpoint_id, severity, title, description, score, status)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'new')",
-            &[
-                DbParam::Text(alert_id_clone),
-                DbParam::Text(endpoint_id_str),
-                DbParam::Text(severity_str.to_string()),
-                DbParam::Text(alert.title),
-                DbParam::Text(alert.description),
-                DbParam::Real(alert.score),
-            ],
-        ).await;
+                &[
+                    DbParam::Text(alert_id_clone),
+                    DbParam::Text(endpoint_id_str),
+                    DbParam::Text(severity_str.to_string()),
+                    DbParam::Text(alert.title),
+                    DbParam::Text(alert.description),
+                    DbParam::Real(alert.score),
+                ],
+            )
+            .await;
 
-        self.state.metrics.alerts_generated.fetch_add(1, Ordering::Relaxed);
+        self.state
+            .metrics
+            .alerts_generated
+            .fetch_add(1, Ordering::Relaxed);
 
         if severity_str == "high" || severity_str == "critical" {
             let notif_title = format!("EDR Alert: {}", severity_str);
@@ -327,21 +400,37 @@ impl EndpointService for EndpointServiceImpl {
         self.check_auth(&request)?;
         let (tx, rx) = mpsc::channel(100);
         // Check for pending response actions in DB
-        let actions = self.state.db.query_value(
-            "SELECT id, endpoint_id, action_type, parameters FROM response_actions
+        let actions = self
+            .state
+            .db
+            .query_value(
+                "SELECT id, endpoint_id, action_type, parameters FROM response_actions
              WHERE status = 'pending' AND endpoint_id = ?1",
-            &[DbParam::Text("".to_string())],
-        ).await.unwrap_or_default();
+                &[DbParam::Text("".to_string())],
+            )
+            .await
+            .unwrap_or_default();
 
         for action in actions {
-            let _ = tx.send(Ok(pb::ResponseAction {
-                id: action.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                r#type: 0,
-                parameters: action.get("parameters").and_then(|v| v.as_str()).unwrap_or("").as_bytes().to_vec(),
-                issued_at: None,
-                issued_by: String::new(),
-                reason: String::new(),
-            })).await;
+            let _ = tx
+                .send(Ok(pb::ResponseAction {
+                    id: action
+                        .get("id")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string(),
+                    r#type: 0,
+                    parameters: action
+                        .get("parameters")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .as_bytes()
+                        .to_vec(),
+                    issued_at: None,
+                    issued_by: String::new(),
+                    reason: String::new(),
+                }))
+                .await;
         }
 
         Ok(Response::new(ReceiverStream::new(rx)))
@@ -374,29 +463,44 @@ impl EndpointService for EndpointServiceImpl {
         &self,
         _request: Request<pb::IocCacheRequest>,
     ) -> Result<Response<pb::IocCacheResponse>, Status> {
-        let iocs = self.state.db.query_value(
-            "SELECT id, ioc_type, value FROM iocs WHERE active = 1",
-            &[],
-        ).await.map_err(|e| Status::internal(format!("db error: {}", e)))?;
+        let iocs = self
+            .state
+            .db
+            .query_value("SELECT id, ioc_type, value FROM iocs WHERE active = 1", &[])
+            .await
+            .map_err(|e| Status::internal(format!("db error: {}", e)))?;
 
-        let updated: Vec<pb::Ioc> = iocs.into_iter().map(|ioc| {
-            pb::Ioc {
-                id: ioc.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-                ioc_type: ioc.get("ioc_type").and_then(|v| v.as_str()).map(|s| match s {
-                    "sha256" => pb::Ioctype::IocTypeSha256 as i32,
-                    "sha1" => pb::Ioctype::IocTypeSha1 as i32,
-                    "md5" => pb::Ioctype::IocTypeMd5 as i32,
-                    "domain" => pb::Ioctype::IocTypeDomain as i32,
-                    "url" => pb::Ioctype::IocTypeUrl as i32,
-                    "ip" => pb::Ioctype::IocTypeIp as i32,
-                    "certificate" => pb::Ioctype::IocTypeCertificate as i32,
-                    "registry" => pb::Ioctype::IocTypeRegistryPath as i32,
-                    "file_path" => pb::Ioctype::IocTypeFilePath as i32,
-                    "yara" => pb::Ioctype::IocTypeYara as i32,
-                    "sigma" => pb::Ioctype::IocTypeSigma as i32,
-                    _ => pb::Ioctype::IocTypeUnspecified as i32,
-                }).unwrap_or(0),
-                value: ioc.get("value").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        let updated: Vec<pb::Ioc> = iocs
+            .into_iter()
+            .map(|ioc| pb::Ioc {
+                id: ioc
+                    .get("id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                ioc_type: ioc
+                    .get("ioc_type")
+                    .and_then(|v| v.as_str())
+                    .map(|s| match s {
+                        "sha256" => pb::Ioctype::IocTypeSha256 as i32,
+                        "sha1" => pb::Ioctype::IocTypeSha1 as i32,
+                        "md5" => pb::Ioctype::IocTypeMd5 as i32,
+                        "domain" => pb::Ioctype::IocTypeDomain as i32,
+                        "url" => pb::Ioctype::IocTypeUrl as i32,
+                        "ip" => pb::Ioctype::IocTypeIp as i32,
+                        "certificate" => pb::Ioctype::IocTypeCertificate as i32,
+                        "registry" => pb::Ioctype::IocTypeRegistryPath as i32,
+                        "file_path" => pb::Ioctype::IocTypeFilePath as i32,
+                        "yara" => pb::Ioctype::IocTypeYara as i32,
+                        "sigma" => pb::Ioctype::IocTypeSigma as i32,
+                        _ => pb::Ioctype::IocTypeUnspecified as i32,
+                    })
+                    .unwrap_or(0),
+                value: ioc
+                    .get("value")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
                 severity: pb::Severity::Unspecified as i32,
                 confidence: pb::Confidence::Unspecified as i32,
                 tags: vec![],
@@ -412,8 +516,8 @@ impl EndpointService for EndpointServiceImpl {
                 mitre_tactic: String::new(),
                 malware_family: String::new(),
                 comments: vec![],
-            }
-        }).collect();
+            })
+            .collect();
 
         Ok(Response::new(pb::IocCacheResponse {
             new_version: chrono::Utc::now().timestamp() as u32,
@@ -438,7 +542,10 @@ impl ScannerService for ScannerServiceImpl {
     ) -> Result<Response<pb::ScanStatusMessage>, Status> {
         info!("ScannerService::StartScan");
         let now = chrono::Utc::now();
-        let ts = prost_types::Timestamp { seconds: now.timestamp(), nanos: now.timestamp_subsec_nanos() as i32 };
+        let ts = prost_types::Timestamp {
+            seconds: now.timestamp(),
+            nanos: now.timestamp_subsec_nanos() as i32,
+        };
         Ok(Response::new(pb::ScanStatusMessage {
             scan_id: String::new(),
             status: pb::ScanStatus::Pending as i32,
@@ -461,7 +568,10 @@ impl ScannerService for ScannerServiceImpl {
         _request: Request<pb::StopRequest>,
     ) -> Result<Response<pb::ScanStatusMessage>, Status> {
         let now = chrono::Utc::now();
-        let ts = prost_types::Timestamp { seconds: now.timestamp(), nanos: now.timestamp_subsec_nanos() as i32 };
+        let ts = prost_types::Timestamp {
+            seconds: now.timestamp(),
+            nanos: now.timestamp_subsec_nanos() as i32,
+        };
         Ok(Response::new(pb::ScanStatusMessage {
             scan_id: String::new(),
             status: pb::ScanStatus::Cancelled as i32,
@@ -484,7 +594,10 @@ impl ScannerService for ScannerServiceImpl {
         _request: Request<pb::StatusRequest>,
     ) -> Result<Response<pb::ScanStatusMessage>, Status> {
         let now = chrono::Utc::now();
-        let ts = prost_types::Timestamp { seconds: now.timestamp(), nanos: now.timestamp_subsec_nanos() as i32 };
+        let ts = prost_types::Timestamp {
+            seconds: now.timestamp(),
+            nanos: now.timestamp_subsec_nanos() as i32,
+        };
         Ok(Response::new(pb::ScanStatusMessage {
             scan_id: String::new(),
             status: pb::ScanStatus::Completed as i32,
@@ -726,7 +839,10 @@ fn extract_event_data(evt: &pb::Event) -> serde_json::Value {
 fn extract_metadata(evt: &pb::Event) -> serde_json::Map<String, serde_json::Value> {
     let mut map = serde_json::Map::new();
     for entry in &evt.metadata {
-        map.insert(entry.key.clone(), serde_json::Value::String(entry.value.clone()));
+        map.insert(
+            entry.key.clone(),
+            serde_json::Value::String(entry.value.clone()),
+        );
     }
     map
 }
@@ -764,5 +880,3 @@ fn event_type_to_str(v: i32) -> &'static str {
 fn uuid_from_proto(u: pb::Uuid) -> uuid::Uuid {
     uuid::Uuid::from_bytes(u.value.try_into().unwrap_or([0u8; 16]))
 }
-
-

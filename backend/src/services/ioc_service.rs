@@ -1,6 +1,6 @@
-use std::collections::HashSet;
-use monolith_shared::types::IocType;
 use crate::error::ServiceResult;
+use monolith_shared::types::IocType;
+use std::collections::HashSet;
 
 pub struct IocService;
 

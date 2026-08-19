@@ -1,18 +1,21 @@
 use std::sync::Arc;
 
 use axum::{
+    Router,
     body::Body,
     http::{self, Request, StatusCode},
-    Router,
 };
 use tower::ServiceExt;
 
-use monolith_backend::config::{AppConfig, ServerConfig, AuthConfig, RateLimitingConfig, ResponseRulesConfig, NotificationsConfig};
-use monolith_backend::server::AppState;
+use monolith_backend::config::{
+    AppConfig, AuthConfig, NotificationsConfig, RateLimitingConfig, ResponseRulesConfig,
+    ServerConfig,
+};
 use monolith_backend::router::build_router;
-use monolith_shared::config::{TlsConfig, DatabaseConfig, LoggingConfig, DatabaseKind};
+use monolith_backend::server::AppState;
+use monolith_shared::config::{DatabaseConfig, DatabaseKind, LoggingConfig, TlsConfig};
 use monolith_shared::crypto::JwtManager;
-use monolith_shared::db::{SqliteDatabase, Database, MigrationManager};
+use monolith_shared::db::{Database, MigrationManager, SqliteDatabase};
 
 async fn setup_test_app() -> (Router, String, AppConfig) {
     let dir = tempfile::TempDir::new().unwrap();
@@ -71,36 +74,47 @@ async fn setup_test_app() -> (Router, String, AppConfig) {
         config.auth.jwt_expiration_secs,
         config.auth.refresh_expiration_secs,
     );
-    let token = jwt.issue_token("test-user-id", "admin", "administrator").unwrap();
+    let token = jwt
+        .issue_token("test-user-id", "admin", "administrator")
+        .unwrap();
     let token_hash = monolith_shared::crypto::hash_token(&token);
 
-    let valid_hash = monolith_shared::crypto::PasswordHashManager::hash("correct-password").unwrap();
+    let valid_hash =
+        monolith_shared::crypto::PasswordHashManager::hash("correct-password").unwrap();
 
     // Insert test user first to satisfy FOREIGN KEY constraint
-    state.db.execute(
-        "INSERT INTO users (id, username, password_hash, email, role, enabled)
+    state
+        .db
+        .execute(
+            "INSERT INTO users (id, username, password_hash, email, role, enabled)
          VALUES (?1, ?2, ?3, ?4, ?5, 1)",
-        &[
-            monolith_shared::db::DbParam::Text("test-user-id".to_string()),
-            monolith_shared::db::DbParam::Text("admin".to_string()),
-            monolith_shared::db::DbParam::Text(valid_hash),
-            monolith_shared::db::DbParam::Text("admin@example.com".to_string()),
-            monolith_shared::db::DbParam::Text("administrator".to_string()),
-        ],
-    ).await.unwrap();
+            &[
+                monolith_shared::db::DbParam::Text("test-user-id".to_string()),
+                monolith_shared::db::DbParam::Text("admin".to_string()),
+                monolith_shared::db::DbParam::Text(valid_hash),
+                monolith_shared::db::DbParam::Text("admin@example.com".to_string()),
+                monolith_shared::db::DbParam::Text("administrator".to_string()),
+            ],
+        )
+        .await
+        .unwrap();
 
     // Save token to sessions table to bypass revocation check
-    state.db.execute(
-        "INSERT INTO sessions (id, user_id, token, token_hash, refresh_token, expires_at)
+    state
+        .db
+        .execute(
+            "INSERT INTO sessions (id, user_id, token, token_hash, refresh_token, expires_at)
          VALUES (?1, ?2, ?3, ?4, ?5, datetime('now', '+1 day'))",
-        &[
-            monolith_shared::db::DbParam::Text(uuid::Uuid::new_v4().to_string()),
-            monolith_shared::db::DbParam::Text("test-user-id".to_string()),
-            monolith_shared::db::DbParam::Text(token.clone()),
-            monolith_shared::db::DbParam::Text(token_hash),
-            monolith_shared::db::DbParam::Text("dummy-refresh-token".to_string()),
-        ],
-    ).await.unwrap();
+            &[
+                monolith_shared::db::DbParam::Text(uuid::Uuid::new_v4().to_string()),
+                monolith_shared::db::DbParam::Text("test-user-id".to_string()),
+                monolith_shared::db::DbParam::Text(token.clone()),
+                monolith_shared::db::DbParam::Text(token_hash),
+                monolith_shared::db::DbParam::Text("dummy-refresh-token".to_string()),
+            ],
+        )
+        .await
+        .unwrap();
 
     (app, token, config)
 }
@@ -133,7 +147,9 @@ async fn test_health_liveness() {
     let resp = app.oneshot(req).await.unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
 
-    let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024).await.unwrap();
+    let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
     assert_eq!(json["status"], "ok");
     assert_eq!(json["service"], "monolith-backend");
@@ -206,7 +222,12 @@ async fn test_missing_auth_returns_401() {
 async fn test_invalid_token_returns_401() {
     let (app, _token, _config) = setup_test_app().await;
 
-    let req = build_req(http::Method::GET, "/api/v1/endpoints", None, "invalid.token.here");
+    let req = build_req(
+        http::Method::GET,
+        "/api/v1/endpoints",
+        None,
+        "invalid.token.here",
+    );
     let resp = app.oneshot(req).await.unwrap();
     assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
 }
@@ -215,7 +236,12 @@ async fn test_invalid_token_returns_401() {
 async fn test_endpoint_not_found_returns_404() {
     let (app, token, _config) = setup_test_app().await;
 
-    let req = build_req(http::Method::GET, "/api/v1/endpoints/nonexistent-id", None, &token);
+    let req = build_req(
+        http::Method::GET,
+        "/api/v1/endpoints/nonexistent-id",
+        None,
+        &token,
+    );
     let resp = app.oneshot(req).await.unwrap();
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);
 }

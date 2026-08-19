@@ -1,17 +1,17 @@
 #![allow(missing_docs)]
 
+use monolith_shared::config::ConfigLoader;
+use monolith_shared::db::Database;
 use std::collections::VecDeque;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use tokio::sync::Mutex;
-use monolith_shared::config::ConfigLoader;
-use monolith_shared::db::Database;
 
 use monolith_protobuf::proto::v1;
 
-use monolith_agent::resilience::circuit_breaker::CircuitBreaker;
 use monolith_agent::metrics::AgentMetrics;
+use monolith_agent::resilience::circuit_breaker::CircuitBreaker;
 
 use monolith_agent::config;
 
@@ -26,7 +26,9 @@ impl AgentService {
         let config_path = "configs/agent.toml";
         monolith_agent::tamper::TamperProtection::harden_ntfs_permissions(config_path);
         if std::path::Path::new("configs/agent.toml.sig").exists() {
-            monolith_agent::tamper::TamperProtection::harden_ntfs_permissions("configs/agent.toml.sig");
+            monolith_agent::tamper::TamperProtection::harden_ntfs_permissions(
+                "configs/agent.toml.sig",
+            );
         }
         let config = config::AgentConfig::load(config_path)?;
         monolith_shared::logging::init_logging(&config.logging)
@@ -97,11 +99,13 @@ async fn run_agent(
 
     // Connect to backend gRPC
     let grpc_addr = format!("{}:{}", config.server.host, config.server.grpc_port);
-    let ca_pem = std::fs::read(&config.tls.ca_cert_path)
-        .unwrap_or_else(|_| {
-            tracing::warn!("failed to read CA cert at {}, using empty TLS config", config.tls.ca_cert_path);
-            Vec::new()
-        });
+    let ca_pem = std::fs::read(&config.tls.ca_cert_path).unwrap_or_else(|_| {
+        tracing::warn!(
+            "failed to read CA cert at {}, using empty TLS config",
+            config.tls.ca_cert_path
+        );
+        Vec::new()
+    });
     let mut grpc_client = monolith_agent::grpc::client::GrpcClient::new(&grpc_addr, ca_pem);
     let mut _is_registered = false;
     match grpc_client.connect().await {
@@ -110,22 +114,30 @@ async fn run_agent(
             // Register endpoint to obtain JWT token
             let hostname = hostname();
             let os_version = os_version();
-            match grpc_client.register(&hostname, &os_version, env!("CARGO_PKG_VERSION")).await {
+            match grpc_client
+                .register(&hostname, &os_version, env!("CARGO_PKG_VERSION"))
+                .await
+            {
                 Ok(token) if !token.is_empty() => {
                     tracing::info!(target: "agent", "registered with backend, got JWT token");
                     _is_registered = true;
                 }
-                Ok(_) => tracing::warn!(target: "agent", "registration succeeded but no token returned"),
+                Ok(_) => {
+                    tracing::warn!(target: "agent", "registration succeeded but no token returned")
+                }
                 Err(e) => tracing::warn!(target: "agent", "registration failed: {}", e),
             }
         }
-        Err(e) => tracing::warn!(target: "agent", worker = "grpc", "initial gRPC connection failed (will retry): {}", e),
+        Err(e) => {
+            tracing::warn!(target: "agent", worker = "grpc", "initial gRPC connection failed (will retry): {}", e)
+        }
     }
     let grpc_client = Arc::new(Mutex::new(grpc_client));
 
     // Open driver device
     let driver = monolith_agent::driver::DriverCommunicator::new(
-        &config.driver.name, config.driver.buffer_size
+        &config.driver.name,
+        config.driver.buffer_size,
     );
     let driver_handle = driver.open_device().ok();
     if let Some(ref h) = driver_handle {
@@ -148,10 +160,10 @@ async fn run_agent(
 
     // Local detection engine + alert manager
     let detection_engine = Arc::new(Mutex::new(
-        monolith_agent::detection::LocalDetectionEngine::new()
+        monolith_agent::detection::LocalDetectionEngine::new(),
     ));
     let alert_manager = Arc::new(Mutex::new(
-        monolith_agent::detection::alert::AlertManager::new()
+        monolith_agent::detection::alert::AlertManager::new(),
     ));
 
     // Pipeline resilience
@@ -175,9 +187,7 @@ async fn run_agent(
         let metrics = metrics.clone();
 
         handles.push(tokio::spawn(async move {
-            let mut interval = tokio::time::interval(
-                Duration::from_millis(poll_ms)
-            );
+            let mut interval = tokio::time::interval(Duration::from_millis(poll_ms));
             loop {
                 interval.tick().await;
                 if !running.load(Ordering::Relaxed) {
@@ -185,9 +195,7 @@ async fn run_agent(
                 }
 
                 let handle_guard = driver_handle.lock().await;
-                let raw_data = match handle_guard.as_ref()
-                    .map(|h| driver.read_telemetry(h))
-                {
+                let raw_data = match handle_guard.as_ref().map(|h| driver.read_telemetry(h)) {
                     Some(Ok(data)) => {
                         metrics.driver_disconnected.store(false, Ordering::Relaxed);
                         if data.is_empty() {
@@ -216,7 +224,9 @@ async fn run_agent(
                         .duration_since(std::time::SystemTime::UNIX_EPOCH)
                         .map(|d| d.as_secs())
                         .unwrap_or(0);
-                    metrics.last_telemetry_event_time.store(now, Ordering::Relaxed);
+                    metrics
+                        .last_telemetry_event_time
+                        .store(now, Ordering::Relaxed);
                     let count = events.len();
                     let mut buf = event_buffer.lock().await;
                     for event in events {
@@ -239,23 +249,23 @@ async fn run_agent(
 
     // Worker 2: Event uploader with circuit breaker + retry
     {
-    // Shared upload buffer to decouple detection from uploading
-    let upload_buffer: Arc<Mutex<VecDeque<v1::Event>>> =
-        Arc::new(Mutex::new(VecDeque::with_capacity(10000)));
+        // Shared upload buffer to decouple detection from uploading
+        let upload_buffer: Arc<Mutex<VecDeque<v1::Event>>> =
+            Arc::new(Mutex::new(VecDeque::with_capacity(10000)));
 
-    // Worker 2a: Detection poller (runs local detection on raw events and queues them for upload)
-    {
-        let event_buffer = event_buffer.clone();
-        let upload_buffer = upload_buffer.clone();
-        let running = running.clone();
-        let detection_engine = detection_engine.clone();
-        let alert_manager = alert_manager.clone();
-        let metrics = metrics.clone();
-        let config = config.clone();
-        let driver = driver_arc.clone();
-        let driver_handle = driver_handle.clone();
+        // Worker 2a: Detection poller (runs local detection on raw events and queues them for upload)
+        {
+            let event_buffer = event_buffer.clone();
+            let upload_buffer = upload_buffer.clone();
+            let running = running.clone();
+            let detection_engine = detection_engine.clone();
+            let alert_manager = alert_manager.clone();
+            let metrics = metrics.clone();
+            let config = config.clone();
+            let driver = driver_arc.clone();
+            let driver_handle = driver_handle.clone();
 
-        handles.push(tokio::spawn(async move {
+            handles.push(tokio::spawn(async move {
             let mut interval = tokio::time::interval(
                 Duration::from_millis(500)
             );
@@ -544,64 +554,83 @@ async fn run_agent(
                 }
             }
         }));
-    }
+        }
 
-    // Worker 2b: Uploader poller (drains upload queue and uploads via gRPC)
-    {
-        let grpc_client = grpc_client.clone();
-        let upload_buffer = upload_buffer.clone();
-        let running = running.clone();
-        let upload_circuit = upload_circuit.clone();
-        let conn = conn.clone();
-        let metrics = metrics.clone();
+        // Worker 2b: Uploader poller (drains upload queue and uploads via gRPC)
+        {
+            let grpc_client = grpc_client.clone();
+            let upload_buffer = upload_buffer.clone();
+            let running = running.clone();
+            let upload_circuit = upload_circuit.clone();
+            let conn = conn.clone();
+            let metrics = metrics.clone();
 
-        handles.push(tokio::spawn(async move {
-            let mut interval = tokio::time::interval(
-                Duration::from_millis(500)
-            );
-            let local_store = monolith_agent::db::LocalStore::new(conn);
+            handles.push(tokio::spawn(async move {
+                let mut interval = tokio::time::interval(Duration::from_millis(500));
+                let local_store = monolith_agent::db::LocalStore::new(conn);
 
-            loop {
-                interval.tick().await;
-                if !running.load(Ordering::Relaxed) {
-                    break;
-                }
+                loop {
+                    interval.tick().await;
+                    if !running.load(Ordering::Relaxed) {
+                        break;
+                    }
 
-                if upload_circuit.is_available() {
-                    if let Ok(pending) = local_store.get_pending_uploads(10).await {
-                        for record in pending {
-                            let id = record.get("id").and_then(|v| v.as_i64()).unwrap_or(0);
-                            let payload = record.get("payload");
-                            if let Some(payload_str) = payload.and_then(|v| v.as_str()) {
-                                if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(payload_str) {
-                                    if let Some(arr) = parsed.as_array() {
-                                        let mut batch = Vec::new();
-                                        for item in arr {
-                                            if let Some(b64) = item.as_str() {
-                                                use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
-                                                if let Ok(bytes) = BASE64.decode(b64) {
-                                                    use prost::Message;
-                                                    if let Ok(ev) = v1::Event::decode(&bytes[..]) {
-                                                        batch.push(ev);
+                    if upload_circuit.is_available() {
+                        if let Ok(pending) = local_store.get_pending_uploads(10).await {
+                            for record in pending {
+                                let id = record.get("id").and_then(|v| v.as_i64()).unwrap_or(0);
+                                let payload = record.get("payload");
+                                if let Some(payload_str) = payload.and_then(|v| v.as_str()) {
+                                    if let Ok(parsed) =
+                                        serde_json::from_str::<serde_json::Value>(payload_str)
+                                    {
+                                        if let Some(arr) = parsed.as_array() {
+                                            let mut batch = Vec::new();
+                                            for item in arr {
+                                                if let Some(b64) = item.as_str() {
+                                                    use base64::{
+                                                        Engine as _,
+                                                        engine::general_purpose::STANDARD as BASE64,
+                                                    };
+                                                    if let Ok(bytes) = BASE64.decode(b64) {
+                                                        use prost::Message;
+                                                        if let Ok(ev) =
+                                                            v1::Event::decode(&bytes[..])
+                                                        {
+                                                            batch.push(ev);
+                                                        }
                                                     }
                                                 }
                                             }
-                                        }
-                                        if !batch.is_empty() {
-                                            let mut client = grpc_client.lock().await;
-                                            match client.upload_events_proto(&batch).await {
-                                                Ok(accepted) => {
-                                                    metrics.events_uploaded.fetch_add(accepted as u64, Ordering::Relaxed);
-                                                    let _ = local_store.remove_offline_entry(id).await;
-                                                }
-                                                Err(e) => {
-                                                    upload_circuit.on_failure();
-                                                    tracing::warn!("offline event upload failed: {}", e);
-                                                    if let Err(re) = client.reconnect().await {
-                                                        tracing::error!("reconnect failed: {}", re);
+                                            if !batch.is_empty() {
+                                                let mut client = grpc_client.lock().await;
+                                                match client.upload_events_proto(&batch).await {
+                                                    Ok(accepted) => {
+                                                        metrics.events_uploaded.fetch_add(
+                                                            accepted as u64,
+                                                            Ordering::Relaxed,
+                                                        );
+                                                        let _ = local_store
+                                                            .remove_offline_entry(id)
+                                                            .await;
                                                     }
-                                                    break; // Stop offline upload on error
+                                                    Err(e) => {
+                                                        upload_circuit.on_failure();
+                                                        tracing::warn!(
+                                                            "offline event upload failed: {}",
+                                                            e
+                                                        );
+                                                        if let Err(re) = client.reconnect().await {
+                                                            tracing::error!(
+                                                                "reconnect failed: {}",
+                                                                re
+                                                            );
+                                                        }
+                                                        break; // Stop offline upload on error
+                                                    }
                                                 }
+                                            } else {
+                                                let _ = local_store.remove_offline_entry(id).await;
                                             }
                                         } else {
                                             let _ = local_store.remove_offline_entry(id).await;
@@ -612,67 +641,80 @@ async fn run_agent(
                                 } else {
                                     let _ = local_store.remove_offline_entry(id).await;
                                 }
-                            } else {
-                                let _ = local_store.remove_offline_entry(id).await;
                             }
                         }
                     }
-                }
 
-                let batch = {
-                    let mut buf = upload_buffer.lock().await;
-                    let count = buf.len().min(100);
-                    buf.drain(..count).collect::<Vec<_>>()
-                };
+                    let batch = {
+                        let mut buf = upload_buffer.lock().await;
+                        let count = buf.len().min(100);
+                        buf.drain(..count).collect::<Vec<_>>()
+                    };
 
-                if batch.is_empty() {
-                    continue;
-                }
-
-                // Upload via gRPC with circuit breaker
-                if !upload_circuit.is_available() {
-                    tracing::debug!("upload circuit open, queueing {} events", batch.len());
-                    use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
-                    use prost::Message;
-                    let b64_events: Vec<String> = batch.iter().map(|ev| {
-                        let mut buf = Vec::new();
-                        ev.encode(&mut buf).unwrap();
-                        BASE64.encode(&buf)
-                    }).collect();
-                    let payload = serde_json::json!(b64_events);
-                    let _ = local_store.store_offline_event("events_batch", &payload).await;
-                    continue;
-                }
-
-                let mut client = grpc_client.lock().await;
-                let upload_result = client.upload_events_proto(&batch).await;
-
-                match upload_result {
-                    Ok(accepted) => {
-                        metrics.events_uploaded.fetch_add(accepted as u64, Ordering::Relaxed);
-                        upload_circuit.on_success();
+                    if batch.is_empty() {
+                        continue;
                     }
-                    Err(e) => {
-                        metrics.events_upload_failed.fetch_add(batch.len() as u64, Ordering::Relaxed);
-                        upload_circuit.on_failure();
-                        tracing::warn!("event upload failed ({} events): {}", batch.len(), e);
-                        if let Err(re) = client.reconnect().await {
-                            tracing::error!("reconnect failed: {}", re);
-                        }
+
+                    // Upload via gRPC with circuit breaker
+                    if !upload_circuit.is_available() {
+                        tracing::debug!("upload circuit open, queueing {} events", batch.len());
                         use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
                         use prost::Message;
-                        let b64_events: Vec<String> = batch.iter().map(|ev| {
-                            let mut buf = Vec::new();
-                            ev.encode(&mut buf).unwrap();
-                            BASE64.encode(&buf)
-                        }).collect();
+                        let b64_events: Vec<String> = batch
+                            .iter()
+                            .map(|ev| {
+                                let mut buf = Vec::new();
+                                ev.encode(&mut buf).unwrap();
+                                BASE64.encode(&buf)
+                            })
+                            .collect();
                         let payload = serde_json::json!(b64_events);
-                        let _ = local_store.store_offline_event("events_batch", &payload).await;
+                        let _ = local_store
+                            .store_offline_event("events_batch", &payload)
+                            .await;
+                        continue;
+                    }
+
+                    let mut client = grpc_client.lock().await;
+                    let upload_result = client.upload_events_proto(&batch).await;
+
+                    match upload_result {
+                        Ok(accepted) => {
+                            metrics
+                                .events_uploaded
+                                .fetch_add(accepted as u64, Ordering::Relaxed);
+                            upload_circuit.on_success();
+                        }
+                        Err(e) => {
+                            metrics
+                                .events_upload_failed
+                                .fetch_add(batch.len() as u64, Ordering::Relaxed);
+                            upload_circuit.on_failure();
+                            tracing::warn!("event upload failed ({} events): {}", batch.len(), e);
+                            if let Err(re) = client.reconnect().await {
+                                tracing::error!("reconnect failed: {}", re);
+                            }
+                            use base64::{
+                                Engine as _, engine::general_purpose::STANDARD as BASE64,
+                            };
+                            use prost::Message;
+                            let b64_events: Vec<String> = batch
+                                .iter()
+                                .map(|ev| {
+                                    let mut buf = Vec::new();
+                                    ev.encode(&mut buf).unwrap();
+                                    BASE64.encode(&buf)
+                                })
+                                .collect();
+                            let payload = serde_json::json!(b64_events);
+                            let _ = local_store
+                                .store_offline_event("events_batch", &payload)
+                                .await;
+                        }
                     }
                 }
-            }
-        }));
-    }
+            }));
+        }
     }
 
     // Worker 3: Heartbeat sender
@@ -692,7 +734,8 @@ async fn run_agent(
 
                 let stats_raw = {
                     let handle_guard = driver_handle.lock().await;
-                    handle_guard.as_ref()
+                    handle_guard
+                        .as_ref()
                         .and_then(|h| driver.get_driver_stats(h).ok())
                 };
 
@@ -702,20 +745,25 @@ async fn run_agent(
                     .map(|d| d.as_secs())
                     .unwrap_or(0);
                 let is_disconnected = metrics.driver_disconnected.load(Ordering::Relaxed);
-                
+
                 // Telemetry blackout if disconnected or if no events received for > 5 minutes
                 let is_blackout = is_disconnected || (now > last_event && now - last_event > 300);
 
-                let mut heartbeat = monolith_agent::sync::heartbeat::collect_system_status(
-                    stats_raw.as_deref()
-                );
+                let mut heartbeat =
+                    monolith_agent::sync::heartbeat::collect_system_status(stats_raw.as_deref());
 
                 if let Some(obj) = heartbeat.as_object_mut() {
                     if is_blackout {
                         obj.insert("driver_loaded".to_string(), serde_json::Value::Bool(false));
-                        obj.insert("telemetry_state".to_string(), serde_json::Value::String("blackout".to_string()));
+                        obj.insert(
+                            "telemetry_state".to_string(),
+                            serde_json::Value::String("blackout".to_string()),
+                        );
                     } else {
-                        obj.insert("telemetry_state".to_string(), serde_json::Value::String("healthy".to_string()));
+                        obj.insert(
+                            "telemetry_state".to_string(),
+                            serde_json::Value::String("healthy".to_string()),
+                        );
                     }
                 }
 
@@ -726,7 +774,8 @@ async fn run_agent(
                         tracing::error!("reconnect failed: {}", re);
                     }
                 } else {
-                    let program_data = std::env::var("PROGRAMDATA").unwrap_or_else(|_| "C:\\ProgramData".to_string());
+                    let program_data = std::env::var("PROGRAMDATA")
+                        .unwrap_or_else(|_| "C:\\ProgramData".to_string());
                     let hb_path = format!("{}\\EDR\\.heartbeat", program_data);
                     if let Err(e) = std::fs::write(&hb_path, chrono::Utc::now().to_rfc3339()) {
                         tracing::warn!("failed to write local heartbeat file: {}", e);
@@ -760,9 +809,7 @@ async fn run_agent(
         let policy_circuit = policy_circuit.clone();
 
         handles.push(tokio::spawn(async move {
-            let mut interval = tokio::time::interval(
-                Duration::from_secs(interval_secs)
-            );
+            let mut interval = tokio::time::interval(Duration::from_secs(interval_secs));
             loop {
                 interval.tick().await;
                 if !running.load(Ordering::Relaxed) {
@@ -780,7 +827,8 @@ async fn run_agent(
                         policy_circuit.on_success();
                         tracing::debug!(
                             "policy synced: id={}, version={} ({} bytes)",
-                            policy.policy_id, policy.policy_version,
+                            policy.policy_id,
+                            policy.policy_version,
                             policy.policy_content.len(),
                         );
                         let mut engine = detection_engine.lock().await;
@@ -803,9 +851,7 @@ async fn run_agent(
 
         handles.push(tokio::spawn(async move {
             let collector = monolith_agent::collector::SystemInfoCollector::new();
-            let mut interval = tokio::time::interval(
-                Duration::from_secs(300)
-            );
+            let mut interval = tokio::time::interval(Duration::from_secs(300));
             loop {
                 interval.tick().await;
                 if !running.load(Ordering::Relaxed) {
@@ -849,9 +895,7 @@ async fn run_agent(
         let driver_handle = driver_handle.clone();
 
         handles.push(tokio::spawn(async move {
-            let mut interval = tokio::time::interval(
-                Duration::from_secs(60)
-            );
+            let mut interval = tokio::time::interval(Duration::from_secs(60));
             loop {
                 interval.tick().await;
                 if !running.load(Ordering::Relaxed) {
@@ -872,9 +916,7 @@ async fn run_agent(
         let metrics = metrics.clone();
 
         handles.push(tokio::spawn(async move {
-            let mut interval = tokio::time::interval(
-                Duration::from_secs(1)
-            );
+            let mut interval = tokio::time::interval(Duration::from_secs(1));
             loop {
                 interval.tick().await;
                 if !running.load(Ordering::Relaxed) {
@@ -916,14 +958,22 @@ async fn run_agent(
                         13 => "shred_file",
                         _ => "unknown",
                     };
-                    tracing::info!("executing action: id={} type={}", action.id, action_type_str);
+                    tracing::info!(
+                        "executing action: id={} type={}",
+                        action.id,
+                        action_type_str
+                    );
                     let params: serde_json::Value =
                         serde_json::from_slice(&action.parameters).unwrap_or_default();
                     let handler = monolith_agent::response::ResponseHandler::new();
                     match handler.execute_action(action_type_str, &params).await {
                         Ok(result) => {
                             metrics.actions_executed.fetch_add(1, Ordering::Relaxed);
-                            let status = if result.success { "completed" } else { "failed" };
+                            let status = if result.success {
+                                "completed"
+                            } else {
+                                "failed"
+                            };
                             let _ = client.report_action_status(&action.id, status).await;
                         }
                         Err(e) => {
@@ -958,7 +1008,7 @@ async fn run_agent(
 
     // Shared profile parameters
     let profile_params = Arc::new(tokio::sync::RwLock::new(
-        monolith_agent::profile::TunableParameters::default()
+        monolith_agent::profile::TunableParameters::default(),
     ));
 
     // Worker 10: System state monitor
@@ -968,9 +1018,7 @@ async fn run_agent(
 
         handles.push(tokio::spawn(async move {
             let mut monitor = monolith_agent::system_state::SystemStateMonitor::new();
-            let mut interval = tokio::time::interval(
-                Duration::from_secs(5)
-            );
+            let mut interval = tokio::time::interval(Duration::from_secs(5));
             loop {
                 interval.tick().await;
                 if !running.load(Ordering::Relaxed) {
@@ -1007,9 +1055,7 @@ async fn run_agent(
             };
 
             let mut engine = monolith_agent::profile::ProfileEngine::new(edr_profile);
-            let mut interval = tokio::time::interval(
-                Duration::from_secs(10)
-            );
+            let mut interval = tokio::time::interval(Duration::from_secs(10));
             loop {
                 interval.tick().await;
                 if !running.load(Ordering::Relaxed) {
@@ -1018,7 +1064,8 @@ async fn run_agent(
 
                 let pc_profile = {
                     let params = profile_params.read().await;
-                    params.last_pc_profile
+                    params
+                        .last_pc_profile
                         .and_then(|v| v1::PcProfile::try_from(v).ok())
                         .unwrap_or(v1::PcProfile::Unspecified)
                 };
@@ -1054,16 +1101,13 @@ async fn run_agent(
         }));
     }
 
-
     // Worker 11: Metrics logger (every 5 minutes)
     {
         let running = running.clone();
         let metrics = metrics.clone();
 
         handles.push(tokio::spawn(async move {
-            let mut interval = tokio::time::interval(
-                Duration::from_secs(300)
-            );
+            let mut interval = tokio::time::interval(Duration::from_secs(300));
             loop {
                 interval.tick().await;
                 if !running.load(Ordering::Relaxed) {

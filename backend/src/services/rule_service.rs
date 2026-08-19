@@ -11,7 +11,11 @@ impl RuleService {
         let mut matches = Vec::new();
 
         for rule in rules {
-            if !rule.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true) {
+            if !rule
+                .get("enabled")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(true)
+            {
                 continue;
             }
 
@@ -41,7 +45,10 @@ impl RuleService {
                 }
                 Value::Array(arr) => {
                     if let Some(ev) = event_val.and_then(|v| v.as_str()) {
-                        if !arr.iter().any(|c| c.as_str().map_or(false, |s| ev.contains(s))) {
+                        if !arr
+                            .iter()
+                            .any(|c| c.as_str().map_or(false, |s| ev.contains(s)))
+                        {
                             return false;
                         }
                     } else {

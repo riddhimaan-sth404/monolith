@@ -1,9 +1,9 @@
 use axum::{
-    extract::{State, Path, Query},
     Extension, Json,
+    extract::{Path, Query, State},
 };
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 
 use crate::handlers::require_perm;
@@ -199,7 +199,9 @@ pub async fn isolate(
             )
         })?;
 
-    Ok(Json(json!({"message": "isolation initiated", "action_id": action_id})))
+    Ok(Json(
+        json!({"message": "isolation initiated", "action_id": action_id}),
+    ))
 }
 
 pub async fn release(
@@ -244,7 +246,9 @@ pub async fn release(
             )
         })?;
 
-    Ok(Json(json!({"message": "release initiated", "action_id": action_id})))
+    Ok(Json(
+        json!({"message": "release initiated", "action_id": action_id}),
+    ))
 }
 
 #[derive(Debug, Deserialize)]

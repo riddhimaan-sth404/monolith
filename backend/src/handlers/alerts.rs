@@ -1,9 +1,9 @@
 use axum::{
-    extract::{State, Path, Query},
     Extension, Json,
+    extract::{Path, Query, State},
 };
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 
 use crate::handlers::require_perm;
@@ -147,10 +147,7 @@ pub async fn get(
 ) -> Result<Json<Value>, (axum::http::StatusCode, Json<Value>)> {
     let alerts = state
         .db
-        .query_value(
-            "SELECT * FROM alerts WHERE id = ?1",
-            &[DbParam::Text(id)],
-        )
+        .query_value("SELECT * FROM alerts WHERE id = ?1", &[DbParam::Text(id)])
         .await
         .map_err(|e| {
             (
@@ -293,7 +290,10 @@ pub async fn list_registry_tamper(
 ) -> Result<Json<Value>, (axum::http::StatusCode, Json<Value>)> {
     let events = state
         .db
-        .query_value("SELECT * FROM registry_tamper_events ORDER BY created_at DESC", &[])
+        .query_value(
+            "SELECT * FROM registry_tamper_events ORDER BY created_at DESC",
+            &[],
+        )
         .await
         .map_err(|e| {
             (

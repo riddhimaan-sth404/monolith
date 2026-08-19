@@ -129,7 +129,12 @@ fn handle_tcp_connect(pid: u32, data: &[u8], ctx: &EtwDispatchContext) {
     let lport = parse_port(data, 8);
     let rport = parse_port(data, 10);
     push_network_event(
-        pid, &local, lport, &remote, rport, "TCP",
+        pid,
+        &local,
+        lport,
+        &remote,
+        rport,
+        "TCP",
         network_connect_event::Direction::Outbound as i32,
         ctx,
     );
@@ -144,7 +149,12 @@ fn handle_tcp_disconnect(pid: u32, data: &[u8], ctx: &EtwDispatchContext) {
     let lport = parse_port(data, 8);
     let rport = parse_port(data, 10);
     push_network_event(
-        pid, &local, lport, &remote, rport, "TCP",
+        pid,
+        &local,
+        lport,
+        &remote,
+        rport,
+        "TCP",
         network_connect_event::Direction::Outbound as i32,
         ctx,
     );
@@ -159,7 +169,12 @@ fn handle_tcp_accept(pid: u32, data: &[u8], ctx: &EtwDispatchContext) {
     let lport = parse_port(data, 8);
     let rport = parse_port(data, 10);
     push_network_event(
-        pid, &local, lport, &remote, rport, "TCP",
+        pid,
+        &local,
+        lport,
+        &remote,
+        rport,
+        "TCP",
         network_connect_event::Direction::Inbound as i32,
         ctx,
     );
@@ -197,9 +212,9 @@ fn handle_dns_query(pid: u32, data: &[u8], ctx: &EtwDispatchContext) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::VecDeque;
     use std::sync::Arc;
     use tokio::sync::Mutex;
-    use std::collections::VecDeque;
 
     fn make_utf16_payload(s: &str, header_bytes: usize) -> Vec<u8> {
         let encoded: Vec<u16> = s.encode_utf16().collect();
@@ -276,7 +291,10 @@ mod tests {
             assert_eq!(n.remote_address, "93.184.216.34");
             assert_eq!(n.remote_port, 80);
             assert_eq!(n.protocol, "TCP");
-            assert_eq!(n.direction, network_connect_event::Direction::Outbound as i32);
+            assert_eq!(
+                n.direction,
+                network_connect_event::Direction::Outbound as i32
+            );
             assert_eq!(n.pid, 2001);
         } else {
             panic!("expected NetworkConnect payload");
@@ -315,7 +333,10 @@ mod tests {
             assert_eq!(n.local_port, 8080);
             assert_eq!(n.remote_address, "8.8.8.8");
             assert_eq!(n.remote_port, 53);
-            assert_eq!(n.direction, network_connect_event::Direction::Outbound as i32);
+            assert_eq!(
+                n.direction,
+                network_connect_event::Direction::Outbound as i32
+            );
         }
     }
 
@@ -338,7 +359,10 @@ mod tests {
             assert_eq!(n.local_port, 80);
             assert_eq!(n.remote_address, "10.0.0.50");
             assert_eq!(n.remote_port, 2600);
-            assert_eq!(n.direction, network_connect_event::Direction::Inbound as i32);
+            assert_eq!(
+                n.direction,
+                network_connect_event::Direction::Inbound as i32
+            );
             assert_eq!(n.protocol, "TCP");
         }
     }
@@ -390,7 +414,11 @@ mod tests {
         handle_event(3006, 5003, &data, &ctx);
         let ev = &buffer.blocking_lock()[0];
         if let Some(Payload::DnsQuery(ref d)) = ev.payload {
-            assert!(d.query.len() <= 257, "expected <= 257, got {}", d.query.len());
+            assert!(
+                d.query.len() <= 257,
+                "expected <= 257, got {}",
+                d.query.len()
+            );
         }
     }
 

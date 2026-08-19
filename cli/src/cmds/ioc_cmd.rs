@@ -66,7 +66,11 @@ pub struct DeleteArgs {
     pub id: String,
 }
 
-pub async fn execute(client: &MonolithClient, cmd: &IocCommand, global_output: &str) -> anyhow::Result<()> {
+pub async fn execute(
+    client: &MonolithClient,
+    cmd: &IocCommand,
+    global_output: &str,
+) -> anyhow::Result<()> {
     match cmd {
         IocCommand::List(args) => list(client, args, global_output).await,
         IocCommand::Create(args) => create(client, args).await,

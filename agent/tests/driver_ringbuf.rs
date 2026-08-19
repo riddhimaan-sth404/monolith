@@ -7,7 +7,7 @@
 //! byte-for-byte identical output to the expected C driver layout.
 //! The TLV header is 24 bytes: EventType(4) + DataLength(4) + SequenceNumber(8) + Timestamp(8).
 
-use std::sync::atomic::{AtomicI64, AtomicI32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicI32, AtomicI64, AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 // --- Constants matching driver/edr.h ---
@@ -16,9 +16,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 const EDR_TLV_HEADER_SIZE: usize = 24;
 
 const DRIVER_PROCESS_CREATE_SIZE: usize = 3176;
-const DRIVER_PROCESS_TERMINATE_SIZE: usize = 16;  // ULONG+LONG+ULONGLONG = 4+4+8
-const DRIVER_REGISTRY_DATA_SIZE: usize = 2560;     // 512*2 + 256*2 + 4 + 260*2 + 4*6 + 256*2
-const DRIVER_THREAD_CREATE_SIZE: usize = 16;       // ULONG*4
+const DRIVER_PROCESS_TERMINATE_SIZE: usize = 16; // ULONG+LONG+ULONGLONG = 4+4+8
+const DRIVER_REGISTRY_DATA_SIZE: usize = 2560; // 512*2 + 256*2 + 4 + 260*2 + 4*6 + 256*2
+const DRIVER_THREAD_CREATE_SIZE: usize = 16; // ULONG*4
 
 // --- TLV primitives ---
 
@@ -81,7 +81,10 @@ impl EdrRingBuffer {
 
     /// Write with live timestamp.
     fn write(&mut self, event_type: EdrEventType, data: &[u8]) -> Option<u32> {
-        let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos() as u64;
+        let ts = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos() as u64;
         self.write_with_ts(event_type, data, ts)
     }
 
@@ -113,9 +116,11 @@ impl EdrRingBuffer {
                 next
             };
 
-            if self.write_index.compare_exchange_weak(
-                current_write, next, Ordering::AcqRel, Ordering::Relaxed,
-            ).is_ok() {
+            if self
+                .write_index
+                .compare_exchange_weak(current_write, next, Ordering::AcqRel, Ordering::Relaxed)
+                .is_ok()
+            {
                 break next;
             }
         };
@@ -227,7 +232,11 @@ impl EdrRingBuffer {
     fn used(&self) -> u32 {
         let ri = self.read_index.load(Ordering::Acquire);
         let wi = self.write_index.load(Ordering::Acquire);
-        if wi >= ri { (wi - ri) as u32 } else { (self.size as i32 - ri + wi) as u32 }
+        if wi >= ri {
+            (wi - ri) as u32
+        } else {
+            (self.size as i32 - ri + wi) as u32
+        }
     }
 
     fn parse_entry(data: &[u8]) -> Option<(u32, u32, u64, u64, &[u8])> {
@@ -240,7 +249,13 @@ impl EdrRingBuffer {
         if payload_end > data.len() {
             return None;
         }
-        Some((event_type, data_length, seq, ts, &data[payload_start..payload_end]))
+        Some((
+            event_type,
+            data_length,
+            seq,
+            ts,
+            &data[payload_start..payload_end],
+        ))
     }
 }
 
@@ -327,17 +342,24 @@ mod signatures {
     fn sig3_process_terminate_entry() {
         let payload: Vec<u8> = {
             let mut p = vec![0u8; DRIVER_PROCESS_TERMINATE_SIZE];
-            p[0..4].copy_from_slice(&999u32.to_le_bytes());   // PID
-            p[4..8].copy_from_slice(&(-1i32).to_le_bytes());   // ExitCode = -1
-            p[8..16].copy_from_slice(&0u64.to_le_bytes());     // RunTimeNanos
+            p[0..4].copy_from_slice(&999u32.to_le_bytes()); // PID
+            p[4..8].copy_from_slice(&(-1i32).to_le_bytes()); // ExitCode = -1
+            p[8..16].copy_from_slice(&0u64.to_le_bytes()); // RunTimeNanos
             p
         };
 
         let mut rb = EdrRingBuffer::new(256);
-        rb.write_with_ts(EdrEventType::ProcessTerminate, &payload, 0x1111_2222_3333_4444)
-            .unwrap();
+        rb.write_with_ts(
+            EdrEventType::ProcessTerminate,
+            &payload,
+            0x1111_2222_3333_4444,
+        )
+        .unwrap();
 
-        assert_eq!(rb.write_index.load(Ordering::Relaxed), (EDR_TLV_HEADER_SIZE + DRIVER_PROCESS_TERMINATE_SIZE) as i32);
+        assert_eq!(
+            rb.write_index.load(Ordering::Relaxed),
+            (EDR_TLV_HEADER_SIZE + DRIVER_PROCESS_TERMINATE_SIZE) as i32
+        );
 
         let (ty, dl, seq, ts) = read_tlv_header(&rb.buffer[..EDR_TLV_HEADER_SIZE]).unwrap();
         assert_eq!(ty, 2);
@@ -373,8 +395,12 @@ mod signatures {
         };
 
         let mut rb = EdrRingBuffer::new(4096);
-        rb.write_with_ts(EdrEventType::RegistrySetValue, &payload, 0xAAAA_BBBB_CCCC_DDDD)
-            .unwrap();
+        rb.write_with_ts(
+            EdrEventType::RegistrySetValue,
+            &payload,
+            0xAAAA_BBBB_CCCC_DDDD,
+        )
+        .unwrap();
 
         let (ty, dl, seq, ts) = read_tlv_header(&rb.buffer[..EDR_TLV_HEADER_SIZE]).unwrap();
         assert_eq!(ty, 8);
@@ -397,9 +423,9 @@ mod signatures {
         let pc_payload = vec![0xABu8; DRIVER_PROCESS_CREATE_SIZE];
         let tc_payload: Vec<u8> = {
             let mut p = vec![0u8; DRIVER_THREAD_CREATE_SIZE];
-            p[0..4].copy_from_slice(&777u32.to_le_bytes());   // PID
-            p[4..8].copy_from_slice(&888u32.to_le_bytes());   // TID
-            p[8..12].copy_from_slice(&999u32.to_le_bytes());  // CreatorPID
+            p[0..4].copy_from_slice(&777u32.to_le_bytes()); // PID
+            p[4..8].copy_from_slice(&888u32.to_le_bytes()); // TID
+            p[8..12].copy_from_slice(&999u32.to_le_bytes()); // CreatorPID
             p[12..16].copy_from_slice(&111u32.to_le_bytes()); // CreatorTID
             p
         };
@@ -417,7 +443,10 @@ mod signatures {
         // Read both entries back
         let mut out = Vec::new();
         rb.read(&mut out, 6400);
-        assert_eq!(out.len(), e1_total + EDR_TLV_HEADER_SIZE + DRIVER_THREAD_CREATE_SIZE);
+        assert_eq!(
+            out.len(),
+            e1_total + EDR_TLV_HEADER_SIZE + DRIVER_THREAD_CREATE_SIZE
+        );
 
         // Parse entry 1
         let (ty1, dl1, seq1, ts1, data1) = EdrRingBuffer::parse_entry(&out).unwrap();
@@ -429,8 +458,7 @@ mod signatures {
 
         // Parse entry 2
         let off2 = e1_total;
-        let (ty2, dl2, seq2, ts2, data2) =
-            EdrRingBuffer::parse_entry(&out[off2..]).unwrap();
+        let (ty2, dl2, seq2, ts2, data2) = EdrRingBuffer::parse_entry(&out[off2..]).unwrap();
         assert_eq!(ty2, 3); // ThreadCreate
         assert_eq!(dl2, DRIVER_THREAD_CREATE_SIZE as u32);
         assert_eq!(seq2, 2);
@@ -458,16 +486,19 @@ mod signatures {
         let mut rb = EdrRingBuffer::new(buf_sz);
 
         // Entry 1 at offset 0 (30 bytes) → WriteIndex=30
-        rb.write_with_ts(EdrEventType::ProcessCreate, payload5, 10).unwrap();
+        rb.write_with_ts(EdrEventType::ProcessCreate, payload5, 10)
+            .unwrap();
         assert_eq!(rb.write_index.load(Ordering::Relaxed), 30);
         assert_eq!(rb.read_index.load(Ordering::Relaxed), 0);
 
         // Entry 2 at offset 30 (30 bytes) → WriteIndex=60
-        rb.write_with_ts(EdrEventType::ThreadCreate, payload6, 20).unwrap();
+        rb.write_with_ts(EdrEventType::ThreadCreate, payload6, 20)
+            .unwrap();
         assert_eq!(rb.write_index.load(Ordering::Relaxed), 60);
 
         // Entry 3 at offset 60 — only 40 bytes left, needs 30, fits
-        rb.write_with_ts(EdrEventType::ImageLoad, b"GHIJKL", 30).unwrap();
+        rb.write_with_ts(EdrEventType::ImageLoad, b"GHIJKL", 30)
+            .unwrap();
         assert_eq!(rb.write_index.load(Ordering::Relaxed), 90);
 
         // Entry 4 at offset 90 — only 10 bytes left, needs 30 → doesn't fit
@@ -524,18 +555,23 @@ mod signatures {
     #[test]
     fn sig7_exact_fill_then_wrap() {
         let entry_sz = EDR_TLV_HEADER_SIZE + 8; // 32
-        let buf_sz = entry_sz * 2;              // 64
+        let buf_sz = entry_sz * 2; // 64
 
         let mut rb = EdrRingBuffer::new(buf_sz);
 
         // Write 2 entries: WriteIndex=32, then 64
-        rb.write_with_ts(EdrEventType::ProcessCreate, b"payload1", 100).unwrap();
-        rb.write_with_ts(EdrEventType::ThreadCreate, b"payload2", 200).unwrap();
+        rb.write_with_ts(EdrEventType::ProcessCreate, b"payload1", 100)
+            .unwrap();
+        rb.write_with_ts(EdrEventType::ThreadCreate, b"payload2", 200)
+            .unwrap();
         assert_eq!(rb.write_index.load(Ordering::Relaxed), buf_sz as i32);
 
         // 3rd write should fail (buffer full: current_read=0, non-wrap: next=96, >64)
         // Wrap: total_size(32) > current_read(0)? Yes → drop
-        assert!(rb.write_with_ts(EdrEventType::ImageLoad, b"payload3", 300).is_none());
+        assert!(
+            rb.write_with_ts(EdrEventType::ImageLoad, b"payload3", 300)
+                .is_none()
+        );
 
         // Read 1 entry: ReadIndex advances to 32
         let mut out = Vec::new();
@@ -548,7 +584,8 @@ mod signatures {
         // So wrap is allowed (total_size <= current_read)
         // next_write = 32, wrapped=true
         // CAS: WriteIndex 64→32
-        rb.write_with_ts(EdrEventType::ImageLoad, b"payload3", 300).unwrap();
+        rb.write_with_ts(EdrEventType::ImageLoad, b"payload3", 300)
+            .unwrap();
         assert_eq!(rb.write_index.load(Ordering::Relaxed), entry_sz as i32);
 
         // Dead tail at offset 64 should be zeroed (but buffer is 64, so offset 64 is beyond end? No, write was at 64 initially)
@@ -573,7 +610,13 @@ mod signatures {
     #[test]
     fn sig8_tlv_header_byte_layout() {
         let mut buf = [0u8; EDR_TLV_HEADER_SIZE];
-        write_tlv_header(&mut buf, 0x01020304, 0x05060708, 0x090A0B0C0D0E0F10, 0x1112131415161718);
+        write_tlv_header(
+            &mut buf,
+            0x01020304,
+            0x05060708,
+            0x090A0B0C0D0E0F10,
+            0x1112131415161718,
+        );
 
         // EventType (LE): 0x04030201
         assert_eq!(buf[0..4], [0x04, 0x03, 0x02, 0x01]);
@@ -582,7 +625,10 @@ mod signatures {
         // SequenceNumber (LE): 0x100F0E0D0C0B0A09
         assert_eq!(buf[8..16], [0x10, 0x0F, 0x0E, 0x0D, 0x0C, 0x0B, 0x0A, 0x09]);
         // Timestamp (LE): 0x1817161514131211
-        assert_eq!(buf[16..24], [0x18, 0x17, 0x16, 0x15, 0x14, 0x13, 0x12, 0x11]);
+        assert_eq!(
+            buf[16..24],
+            [0x18, 0x17, 0x16, 0x15, 0x14, 0x13, 0x12, 0x11]
+        );
     }
 
     // ---------------------------------------------------------------
@@ -623,8 +669,10 @@ mod signatures {
         expected.extend_from_slice(&e1);
         expected.extend_from_slice(&e2);
 
-        rb.write_with_ts(EdrEventType::ProcessCreate, p1, 1111).unwrap();
-        rb.write_with_ts(EdrEventType::ThreadCreate, p2, 2222).unwrap();
+        rb.write_with_ts(EdrEventType::ProcessCreate, p1, 1111)
+            .unwrap();
+        rb.write_with_ts(EdrEventType::ThreadCreate, p2, 2222)
+            .unwrap();
 
         let mut out = Vec::new();
         let n = rb.read(&mut out, 1024);
@@ -641,7 +689,7 @@ mod signatures {
     #[test]
     fn sig11_wrap_byte_layout() {
         let entry_sz = EDR_TLV_HEADER_SIZE + 16; // 40
-        let buf_sz = entry_sz * 2;               // 80
+        let buf_sz = entry_sz * 2; // 80
         let mut rb = EdrRingBuffer::new(buf_sz);
 
         let p1 = b"AAAAAAAAAAAAAAAA"; // 16 bytes
@@ -649,8 +697,10 @@ mod signatures {
         let p3 = b"CCCCCCCCCCCCCCCC";
 
         // Write 2 entries → buffer full
-        rb.write_with_ts(EdrEventType::ProcessCreate, p1, 10).unwrap(); // offset 0, WI=40
-        rb.write_with_ts(EdrEventType::ThreadCreate, p2, 20).unwrap();  // offset 40, WI=80
+        rb.write_with_ts(EdrEventType::ProcessCreate, p1, 10)
+            .unwrap(); // offset 0, WI=40
+        rb.write_with_ts(EdrEventType::ThreadCreate, p2, 20)
+            .unwrap(); // offset 40, WI=80
 
         assert_eq!(rb.write_index.load(Ordering::Relaxed), 80);
 
@@ -852,7 +902,11 @@ fn test_consecutive_writes_no_gap() {
     let mut rb = EdrRingBuffer::new(4096);
     let payload = b"abc";
     for i in 0..10 {
-        let ev = if i % 2 == 0 { EdrEventType::ProcessCreate } else { EdrEventType::RegistrySetValue };
+        let ev = if i % 2 == 0 {
+            EdrEventType::ProcessCreate
+        } else {
+            EdrEventType::RegistrySetValue
+        };
         rb.write(ev, payload).unwrap();
     }
     let mut out = Vec::new();

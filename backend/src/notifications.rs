@@ -4,11 +4,7 @@ use tracing::warn;
 
 /// Sends a Windows toast notification via PowerShell.
 /// If the PowerShell script path is None, the notification is silently skipped.
-pub async fn send_alert_notification(
-    script_path: Option<Arc<str>>,
-    title: &str,
-    message: &str,
-) {
+pub async fn send_alert_notification(script_path: Option<Arc<str>>, title: &str, message: &str) {
     let Some(script) = script_path else {
         return;
     };

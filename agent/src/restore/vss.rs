@@ -26,7 +26,11 @@ impl SnapshotInfo {
 
 /// Create a VSS snapshot of the given volume.
 /// The diff area is stored on the hidden partition.
-pub fn create_snapshot(volume: &str, label: &str, _diff_area_path: &str) -> Result<SnapshotInfo, String> {
+pub fn create_snapshot(
+    volume: &str,
+    label: &str,
+    _diff_area_path: &str,
+) -> Result<SnapshotInfo, String> {
     tracing::info!("VSS snapshot requested: volume={}, label={}", volume, label);
     Err("VSS snapshot creation not yet implemented (Phase 1a)".to_string())
 }

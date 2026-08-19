@@ -1,6 +1,8 @@
+use monolith_shared::config::{
+    ConfigError, ConfigLoader, DatabaseConfig, LoggingConfig, TlsConfig,
+};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use monolith_shared::config::{ConfigError, ConfigLoader, LoggingConfig, TlsConfig, DatabaseConfig};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerConfig {
@@ -111,22 +113,25 @@ impl AuthConfig {
         exp_secs: u64,
         refresh_exp_secs: u64,
     ) -> Result<monolith_shared::crypto::JwtManager, String> {
-        if let (Some(priv_path), Some(pub_path)) = (&self.jwt_private_key_path, &self.jwt_public_key_path) {
+        if let (Some(priv_path), Some(pub_path)) =
+            (&self.jwt_private_key_path, &self.jwt_public_key_path)
+        {
             if !priv_path.is_empty() && !pub_path.is_empty() {
                 let priv_key = std::fs::read(priv_path)
                     .map_err(|e| format!("Failed to read private key from {}: {}", priv_path, e))?;
                 let pub_key = std::fs::read(pub_path)
                     .map_err(|e| format!("Failed to read public key from {}: {}", pub_path, e))?;
-                
+
                 return monolith_shared::crypto::JwtManager::new_rsa(
                     &priv_key,
                     &pub_key,
                     exp_secs,
                     refresh_exp_secs,
-                ).map_err(|e| format!("Failed to initialize RS256 JWT Manager: {}", e));
+                )
+                .map_err(|e| format!("Failed to initialize RS256 JWT Manager: {}", e));
             }
         }
-        
+
         Ok(monolith_shared::crypto::JwtManager::new(
             self.jwt_secret.as_bytes(),
             exp_secs,
@@ -277,20 +282,26 @@ impl ConfigLoader for AppConfig {
 
     fn validate(&self) -> Result<(), ConfigError> {
         if self.server.port == 0 {
-            return Err(ConfigError::ValidationError("server.port must be > 0".into()));
+            return Err(ConfigError::ValidationError(
+                "server.port must be > 0".into(),
+            ));
         }
         if self.auth.jwt_secret.len() < 32 {
             return Err(ConfigError::ValidationError(
                 "auth.jwt_secret must be at least 32 characters".into(),
             ));
         }
-        if self.auth.jwt_secret.starts_with("CHANGE_ME_") || self.auth.jwt_secret == "CHANGE_ME_GENERATE_SECURE_RANDOM_64_BYTES" {
+        if self.auth.jwt_secret.starts_with("CHANGE_ME_")
+            || self.auth.jwt_secret == "CHANGE_ME_GENERATE_SECURE_RANDOM_64_BYTES"
+        {
             return Err(ConfigError::ValidationError(
                 "auth.jwt_secret must not be the default value. Set EDR_JWT_SECRET env var or configure a unique secret.".into(),
             ));
         }
         if self.tls.cert_path.is_empty() || self.tls.key_path.is_empty() {
-            return Err(ConfigError::ValidationError("TLS cert and key paths required".into()));
+            return Err(ConfigError::ValidationError(
+                "TLS cert and key paths required".into(),
+            ));
         }
         Ok(())
     }

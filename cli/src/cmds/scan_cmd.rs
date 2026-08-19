@@ -38,7 +38,11 @@ pub struct CancelArgs {
     pub id: String,
 }
 
-pub async fn execute(client: &MonolithClient, cmd: &ScanCommand, global_output: &str) -> anyhow::Result<()> {
+pub async fn execute(
+    client: &MonolithClient,
+    cmd: &ScanCommand,
+    global_output: &str,
+) -> anyhow::Result<()> {
     match cmd {
         ScanCommand::List(args) => list(client, args, global_output).await,
         ScanCommand::Trigger(args) => trigger(client, args).await,

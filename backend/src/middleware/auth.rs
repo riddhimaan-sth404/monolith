@@ -1,13 +1,13 @@
 use axum::{
+    Json,
     extract::{Request, State},
+    http::StatusCode,
     middleware::Next,
     response::Response,
-    http::StatusCode,
-    Json,
 };
-use serde_json::json;
 use monolith_shared::auth::AuthContext;
 use monolith_shared::error::EdrError;
+use serde_json::json;
 
 use crate::server::SharedAppState;
 
@@ -68,10 +68,14 @@ pub async fn auth_middleware(
 
     // Enforce session revocation checking
     let token_hash = monolith_shared::crypto::hash_token(auth_header);
-    match state.db.query_value(
-        "SELECT revoked FROM sessions WHERE token_hash = ?1",
-        &[monolith_shared::db::DbParam::Text(token_hash)],
-    ).await {
+    match state
+        .db
+        .query_value(
+            "SELECT revoked FROM sessions WHERE token_hash = ?1",
+            &[monolith_shared::db::DbParam::Text(token_hash)],
+        )
+        .await
+    {
         Ok(rows) => {
             if let Some(row) = rows.into_iter().next() {
                 let revoked = row.get("revoked").and_then(|v| v.as_i64()).unwrap_or(0);
@@ -93,7 +97,12 @@ pub async fn auth_middleware(
     }
 
     // Create auth context and attach to request extensions
-    let auth_context = AuthContext::new(claims.sub, claims.username, monolith_shared::auth::Role::from_str(&claims.role).unwrap_or(monolith_shared::auth::Role::Viewer));
+    let auth_context = AuthContext::new(
+        claims.sub,
+        claims.username,
+        monolith_shared::auth::Role::from_str(&claims.role)
+            .unwrap_or(monolith_shared::auth::Role::Viewer),
+    );
 
     request.extensions_mut().insert(auth_context);
 

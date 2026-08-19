@@ -1,20 +1,23 @@
-use argon2::{
-    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher as Argon2PasswordHasher, PasswordVerifier, SaltString},
-    Argon2,
-};
-use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
-use serde::{Deserialize, Serialize};
-use chrono::{Utc, Duration};
 use crate::error::{EdrError, Result};
+use argon2::{
+    Argon2,
+    password_hash::{
+        PasswordHash, PasswordHasher as Argon2PasswordHasher, PasswordVerifier, SaltString,
+        rand_core::OsRng,
+    },
+};
+use chrono::{Duration, Utc};
+use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
-    pub sub: String,       // subject (user_id)
+    pub sub: String, // subject (user_id)
     pub username: String,
     pub role: String,
-    pub exp: usize,         // expiry timestamp
-    pub iat: usize,         // issued at
-    pub jti: String,        // JWT ID (unique token identifier)
+    pub exp: usize,  // expiry timestamp
+    pub iat: usize,  // issued at
+    pub jti: String, // JWT ID (unique token identifier)
 }
 
 pub struct PasswordHashManager;
@@ -99,7 +102,8 @@ impl JwtManager {
             sub: user_id.to_string(),
             username: String::new(),
             role: String::new(),
-            exp: (now + Duration::seconds(self.refresh_expiration_secs as i64)).timestamp() as usize,
+            exp: (now + Duration::seconds(self.refresh_expiration_secs as i64)).timestamp()
+                as usize,
             iat: now.timestamp() as usize,
             jti: uuid::Uuid::new_v4().to_string(),
         };
@@ -112,14 +116,11 @@ impl JwtManager {
     pub fn validate_token(&self, token: &str) -> Result<Claims> {
         let mut validation = Validation::new(self.algorithm);
         validation.leeway = 0;
-        let token_data = decode::<Claims>(
-            token,
-            &self.decoding_key,
-            &validation,
-        )
-        .map_err(|e| match e.kind() {
-            jsonwebtoken::errors::ErrorKind::ExpiredSignature => EdrError::TokenExpired,
-            _ => EdrError::InvalidToken(format!("token validation failed: {}", e)),
+        let token_data = decode::<Claims>(token, &self.decoding_key, &validation).map_err(|e| {
+            match e.kind() {
+                jsonwebtoken::errors::ErrorKind::ExpiredSignature => EdrError::TokenExpired,
+                _ => EdrError::InvalidToken(format!("token validation failed: {}", e)),
+            }
         })?;
 
         Ok(token_data.claims)
@@ -223,7 +224,12 @@ mod tests {
             iat: (Utc::now() - Duration::seconds(60)).timestamp() as usize,
             jti: uuid::Uuid::new_v4().to_string(),
         };
-        let token = encode(&Header::default(), &expired_claims, &EncodingKey::from_secret(secret)).unwrap();
+        let token = encode(
+            &Header::default(),
+            &expired_claims,
+            &EncodingKey::from_secret(secret),
+        )
+        .unwrap();
         let jwt = JwtManager::new(secret, 3600, 86400);
         let result = jwt.validate_token(&token);
         assert!(matches!(result, Err(EdrError::TokenExpired)));
@@ -267,7 +273,7 @@ mod tests {
 fn derive_hardware_key() -> Vec<u8> {
     use ring::digest;
     let mut data = Vec::new();
-    
+
     // Add environment variables for stable unique seed
     for var in &[
         "COMPUTERNAME",
@@ -281,10 +287,10 @@ fn derive_hardware_key() -> Vec<u8> {
             data.extend_from_slice(val.as_bytes());
         }
     }
-    
+
     // Static pepper
     data.extend_from_slice(b"MONOLITH_EDR_CONFIG_INTEGRITY_PEPPER_SECURE_987654321");
-    
+
     let hash = digest::digest(&digest::SHA256, &data);
     hash.as_ref().to_vec()
 }
@@ -303,4 +309,3 @@ pub fn verify_config(config_bytes: &[u8], signature_bytes: &[u8]) -> bool {
     let key = hmac::Key::new(hmac::HMAC_SHA256, &key_bytes);
     hmac::verify(&key, config_bytes, signature_bytes).is_ok()
 }
-

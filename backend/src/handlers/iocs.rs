@@ -1,9 +1,9 @@
 use axum::{
-    extract::{State, Path, Query},
     Extension, Json,
+    extract::{Path, Query, State},
 };
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -147,7 +147,9 @@ pub async fn create(
             )
         })?;
 
-    Ok(Json(json!({"id": id, "message": "IOC created successfully"})))
+    Ok(Json(
+        json!({"id": id, "message": "IOC created successfully"}),
+    ))
 }
 
 #[derive(Debug, Deserialize)]
@@ -194,9 +196,10 @@ pub async fn import_(
                         if !dry_run {
                             let id = Uuid::new_v4().to_string();
                             let severity = record.get(2).unwrap_or("medium");
-                            let tags: Vec<String> = record.get(3).map(|t| {
-                                t.split(';').map(|s| s.trim().to_string()).collect()
-                            }).unwrap_or_default();
+                            let tags: Vec<String> = record
+                                .get(3)
+                                .map(|t| t.split(';').map(|s| s.trim().to_string()).collect())
+                                .unwrap_or_default();
 
                             match state.db.execute(
                                 "INSERT OR IGNORE INTO iocs (id, ioc_type, value, severity, tags) VALUES (?1, ?2, ?3, ?4, ?5)",
@@ -265,7 +268,9 @@ pub async fn import_(
         _ => {
             return Err((
                 axum::http::StatusCode::BAD_REQUEST,
-                Json(json!({"error": format!("unsupported format: {}. Supported: csv, json", req.format)})),
+                Json(
+                    json!({"error": format!("unsupported format: {}. Supported: csv, json", req.format)}),
+                ),
             ));
         }
     }
@@ -285,10 +290,7 @@ pub async fn get(
 ) -> Result<Json<Value>, (axum::http::StatusCode, Json<Value>)> {
     let iocs = state
         .db
-        .query_value(
-            "SELECT * FROM iocs WHERE id = ?1",
-            &[DbParam::Text(id)],
-        )
+        .query_value("SELECT * FROM iocs WHERE id = ?1", &[DbParam::Text(id)])
         .await
         .map_err(|e| {
             (
@@ -340,7 +342,9 @@ pub async fn update(
     }
     if let Some(tags) = &req.tags {
         updates.push("tags = ?");
-        params.push(DbParam::Text(serde_json::to_string(tags).unwrap_or_default()));
+        params.push(DbParam::Text(
+            serde_json::to_string(tags).unwrap_or_default(),
+        ));
     }
     if let Some(expires) = &req.expires_at {
         updates.push("expires_at = ?");

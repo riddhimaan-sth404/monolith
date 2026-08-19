@@ -1,3 +1,6 @@
+use super::traits::{Database, DatabaseConnection, DbParam, Transaction};
+use crate::config::DatabaseConfig;
+use crate::error::{EdrError, Result};
 use async_trait::async_trait;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -5,9 +8,6 @@ use sqlx::postgres::{PgArguments, PgPoolOptions, PgRow};
 use sqlx::query::Query;
 use sqlx::{Column, Row};
 use std::sync::Arc;
-use crate::config::DatabaseConfig;
-use crate::error::{EdrError, Result};
-use super::traits::{Database, DatabaseConnection, DbParam, Transaction};
 
 pub struct PostgresDatabase;
 
@@ -26,7 +26,9 @@ impl Database for PostgresDatabase {
             .max_connections(config.max_connections)
             .connect(&config.path)
             .await
-            .map_err(|e| EdrError::DatabaseError(format!("failed to connect to postgres: {}", e)))?;
+            .map_err(|e| {
+                EdrError::DatabaseError(format!("failed to connect to postgres: {}", e))
+            })?;
 
         Ok(PostgresConnection {
             pool: Arc::new(pool),
@@ -50,8 +52,12 @@ fn row_to_json(row: &PgRow) -> Value {
         let name = col.name();
         let val = row.try_get::<Option<String>, _>(name).ok().flatten();
         match val {
-            Some(s) => { map.insert(name.to_string(), Value::String(s)); }
-            None => { map.insert(name.to_string(), Value::Null); }
+            Some(s) => {
+                map.insert(name.to_string(), Value::String(s));
+            }
+            None => {
+                map.insert(name.to_string(), Value::Null);
+            }
         }
     }
     Value::Object(map)
@@ -115,30 +121,31 @@ impl DatabaseConnection for PostgresConnection {
         let pg_sql = convert_placeholders(sql);
         let query = bind_params(sqlx::query(&pg_sql), params);
 
-        let result = query
-            .execute(&*self.pool)
-            .await
-            .map_err(|e| EdrError::DatabaseError(format!("postgres execute failed: {} - SQL: {}", e, pg_sql)))?;
+        let result = query.execute(&*self.pool).await.map_err(|e| {
+            EdrError::DatabaseError(format!("postgres execute failed: {} - SQL: {}", e, pg_sql))
+        })?;
 
         Ok(result.rows_affected())
     }
 
     async fn execute_batch(&self, sql: &str) -> Result<()> {
-        sqlx::query(sql)
-            .execute(&*self.pool)
-            .await
-            .map_err(|e| EdrError::DatabaseError(format!("postgres batch execute failed: {}", e)))?;
+        sqlx::query(sql).execute(&*self.pool).await.map_err(|e| {
+            EdrError::DatabaseError(format!("postgres batch execute failed: {}", e))
+        })?;
         Ok(())
     }
 
-    async fn query<T: DeserializeOwned + Send>(&self, sql: &str, params: &[DbParam]) -> Result<Vec<T>> {
+    async fn query<T: DeserializeOwned + Send>(
+        &self,
+        sql: &str,
+        params: &[DbParam],
+    ) -> Result<Vec<T>> {
         let pg_sql = convert_placeholders(sql);
         let query = bind_params(sqlx::query(&pg_sql), params);
 
-        let rows = query
-            .fetch_all(&*self.pool)
-            .await
-            .map_err(|e| EdrError::DatabaseError(format!("postgres query failed: {} - SQL: {}", e, pg_sql)))?;
+        let rows = query.fetch_all(&*self.pool).await.map_err(|e| {
+            EdrError::DatabaseError(format!("postgres query failed: {} - SQL: {}", e, pg_sql))
+        })?;
 
         let results: Vec<T> = rows
             .iter()
@@ -151,7 +158,11 @@ impl DatabaseConnection for PostgresConnection {
         Ok(results)
     }
 
-    async fn query_one<T: DeserializeOwned + Send>(&self, sql: &str, params: &[DbParam]) -> Result<Option<T>> {
+    async fn query_one<T: DeserializeOwned + Send>(
+        &self,
+        sql: &str,
+        params: &[DbParam],
+    ) -> Result<Option<T>> {
         let mut results = self.query::<T>(sql, params).await?;
         Ok(results.pop())
     }

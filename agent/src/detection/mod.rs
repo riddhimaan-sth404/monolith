@@ -1,5 +1,5 @@
-use std::collections::HashSet;
 use serde_json::Value;
+use std::collections::HashSet;
 
 pub mod alert;
 pub mod chain;
@@ -48,22 +48,34 @@ impl LocalDetectionEngine {
         let ioc_type = if let Some(t) = explicit_type {
             t.to_lowercase()
         } else {
-            if (value_lower.len() == 64 && value_lower.chars().all(|c| c.is_ascii_hexdigit())) || value_lower.ends_with("sha256hash") {
+            if (value_lower.len() == 64 && value_lower.chars().all(|c| c.is_ascii_hexdigit()))
+                || value_lower.ends_with("sha256hash")
+            {
                 "sha256".to_string()
-            } else if value_lower.len() == 40 && value_lower.chars().all(|c| c.is_ascii_hexdigit()) {
+            } else if value_lower.len() == 40 && value_lower.chars().all(|c| c.is_ascii_hexdigit())
+            {
                 "sha1".to_string()
-            } else if value_lower.len() == 32 && value_lower.chars().all(|c| c.is_ascii_hexdigit()) {
+            } else if value_lower.len() == 32 && value_lower.chars().all(|c| c.is_ascii_hexdigit())
+            {
                 "md5".to_string()
             } else if value_lower.parse::<std::net::IpAddr>().is_ok() || value_lower.contains('/') {
                 "ip".to_string()
             } else if value_lower.contains('\\') || value_lower.contains('/') {
-                if value_lower.starts_with("hklm") || value_lower.starts_with("hkcu") || value_lower.starts_with("hkey_") {
+                if value_lower.starts_with("hklm")
+                    || value_lower.starts_with("hkcu")
+                    || value_lower.starts_with("hkey_")
+                {
                     "registry".to_string()
                 } else {
                     "path".to_string()
                 }
             } else if value_lower.contains('.') && !value_lower.starts_with('.') {
-                let ends_with_file_ext = [".exe", ".dll", ".sys", ".bat", ".cmd", ".ps1", ".vbs", ".js", ".lnk", ".txt", ".json", ".xml", ".yml", ".yaml"].iter().any(|ext| value_lower.ends_with(ext));
+                let ends_with_file_ext = [
+                    ".exe", ".dll", ".sys", ".bat", ".cmd", ".ps1", ".vbs", ".js", ".lnk", ".txt",
+                    ".json", ".xml", ".yml", ".yaml",
+                ]
+                .iter()
+                .any(|ext| value_lower.ends_with(ext));
                 if ends_with_file_ext {
                     "path".to_string()
                 } else {
@@ -81,19 +93,36 @@ impl LocalDetectionEngine {
             if let Some(iocs) = v.get("iocs").and_then(|v| v.as_array()) {
                 for ioc in iocs {
                     if let Some(value) = ioc.get("value").and_then(|v| v.as_str()) {
-                        let explicit_type = ioc.get("ioc_type")
+                        let explicit_type = ioc
+                            .get("ioc_type")
                             .or_else(|| ioc.get("type"))
                             .and_then(|v| v.as_str());
                         let (ioc_type, val) = Self::classify_ioc_value(value, explicit_type);
                         match ioc_type.as_str() {
-                            "sha256" => { self.ioc_sha256.insert(val); }
-                            "sha1" => { self.ioc_sha1.insert(val); }
-                            "md5" => { self.ioc_md5.insert(val); }
-                            "domain" => { self.ioc_domain.insert(val); }
-                            "ip" => { self.ioc_ip.insert(val); }
-                            "path" | "filepath" | "file_path" => { self.ioc_path.insert(val); }
-                            "registry" | "registry_path" | "registrypath" => { self.ioc_registry.insert(val); }
-                            _ => { self.ioc_path.insert(val); }
+                            "sha256" => {
+                                self.ioc_sha256.insert(val);
+                            }
+                            "sha1" => {
+                                self.ioc_sha1.insert(val);
+                            }
+                            "md5" => {
+                                self.ioc_md5.insert(val);
+                            }
+                            "domain" => {
+                                self.ioc_domain.insert(val);
+                            }
+                            "ip" => {
+                                self.ioc_ip.insert(val);
+                            }
+                            "path" | "filepath" | "file_path" => {
+                                self.ioc_path.insert(val);
+                            }
+                            "registry" | "registry_path" | "registrypath" => {
+                                self.ioc_registry.insert(val);
+                            }
+                            _ => {
+                                self.ioc_path.insert(val);
+                            }
                         }
                     }
                 }
@@ -110,9 +139,16 @@ impl LocalDetectionEngine {
 
     /// Checks a process spawn against IoC cache, suspicious list, and spawn chains.
     /// Returns the action if any rule matches, using the highest severity.
-    pub fn check_process_event(&mut self, pid: u32, _parent_pid: u32, image_name: &str, command_line: &str) -> Option<DetectionAction> {
+    pub fn check_process_event(
+        &mut self,
+        pid: u32,
+        _parent_pid: u32,
+        image_name: &str,
+        command_line: &str,
+    ) -> Option<DetectionAction> {
         let path = std::path::Path::new(image_name);
-        let filename = path.file_name()
+        let filename = path
+            .file_name()
             .and_then(|f| f.to_str())
             .unwrap_or(image_name)
             .to_lowercase();
@@ -121,7 +157,7 @@ impl LocalDetectionEngine {
         let mut hash_match = false;
         if !self.ioc_sha256.is_empty() || !self.ioc_sha1.is_empty() || !self.ioc_md5.is_empty() {
             if let Ok(bytes) = std::fs::read(image_name) {
-                use sha2::{Sha256, Digest};
+                use sha2::{Digest, Sha256};
                 let hash = hex::encode(Sha256::digest(&bytes));
                 if self.ioc_sha256.contains(&hash) {
                     hash_match = true;
@@ -138,19 +174,36 @@ impl LocalDetectionEngine {
             });
         }
 
-        if self.suspicious_processes.contains(&lower_path) || self.suspicious_processes.contains(&filename) {
+        if self.suspicious_processes.contains(&lower_path)
+            || self.suspicious_processes.contains(&filename)
+        {
             let standard_suspicious = [
-                "powershell.exe", "cmd.exe", "wscript.exe", "cscript.exe",
-                "mshta.exe", "rundll32.exe", "regsvr32.exe"
+                "powershell.exe",
+                "cmd.exe",
+                "wscript.exe",
+                "cscript.exe",
+                "mshta.exe",
+                "rundll32.exe",
+                "regsvr32.exe",
             ];
             let cmd_lower = command_line.to_lowercase();
             let is_std = standard_suspicious.iter().any(|&s| filename == s);
-            
+
             let is_suspicious_cmd = if is_std {
                 let suspicious_args = [
-                    "-enc", "-e ", "hidden", "downloadstring", "bypass",
-                    "iwe", "urlcache", "invoke-expression", "iex(",
-                    "frombase64string", "-nop", "-window", "-w "
+                    "-enc",
+                    "-e ",
+                    "hidden",
+                    "downloadstring",
+                    "bypass",
+                    "iwe",
+                    "urlcache",
+                    "invoke-expression",
+                    "iex(",
+                    "frombase64string",
+                    "-nop",
+                    "-window",
+                    "-w ",
                 ];
                 suspicious_args.iter().any(|&arg| cmd_lower.contains(arg))
             } else {
@@ -172,8 +225,16 @@ impl LocalDetectionEngine {
 
     /// Checks against spawn chain rules (parent→child, grandparent patterns).
     /// Must be called separately from check_process_event, and takes parent_image.
-    pub fn check_process_chain(&mut self, pid: u32, parent_pid: u32, image_name: &str, parent_image: &str) -> Option<DetectionAction> {
-        let result = self.chain_detector.check_spawn_chain(pid, parent_pid, image_name, parent_image);
+    pub fn check_process_chain(
+        &mut self,
+        pid: u32,
+        parent_pid: u32,
+        image_name: &str,
+        parent_image: &str,
+    ) -> Option<DetectionAction> {
+        let result =
+            self.chain_detector
+                .check_spawn_chain(pid, parent_pid, image_name, parent_image);
         if result.is_some() {
             self.detection_count += 1;
         }
@@ -192,7 +253,11 @@ impl LocalDetectionEngine {
     /// Checks a file event against recent registry persistence writes and IoC cache.
     pub fn check_file_event(&mut self, path: &str, pid: u32) -> Option<DetectionAction> {
         let lower = path.to_lowercase();
-        if self.ioc_path.contains(&lower) || self.ioc_md5.contains(&lower) || self.ioc_sha1.contains(&lower) || self.ioc_sha256.contains(&lower) {
+        if self.ioc_path.contains(&lower)
+            || self.ioc_md5.contains(&lower)
+            || self.ioc_sha1.contains(&lower)
+            || self.ioc_sha256.contains(&lower)
+        {
             self.detection_count += 1;
             return Some(DetectionAction {
                 action_type: "quarantine_file".to_string(),
@@ -200,7 +265,9 @@ impl LocalDetectionEngine {
                 pid,
             });
         }
-        let result = self.chain_detector.check_file_against_recent_registry(path, pid);
+        let result = self
+            .chain_detector
+            .check_file_against_recent_registry(path, pid);
         if result.is_some() {
             self.detection_count += 1;
         }
@@ -208,7 +275,8 @@ impl LocalDetectionEngine {
     }
 
     pub fn check_event(&self, event: &Value) -> Option<DetectionMatch> {
-        if let Some(sha256) = event.pointer("/data/sha256")
+        if let Some(sha256) = event
+            .pointer("/data/sha256")
             .or_else(|| event.get("sha256"))
             .and_then(|v| v.as_str())
         {
@@ -221,7 +289,8 @@ impl LocalDetectionEngine {
             }
         }
 
-        if let Some(sha1) = event.pointer("/data/sha1")
+        if let Some(sha1) = event
+            .pointer("/data/sha1")
             .or_else(|| event.get("sha1"))
             .and_then(|v| v.as_str())
         {
@@ -234,7 +303,8 @@ impl LocalDetectionEngine {
             }
         }
 
-        if let Some(md5) = event.pointer("/data/md5")
+        if let Some(md5) = event
+            .pointer("/data/md5")
             .or_else(|| event.get("md5"))
             .and_then(|v| v.as_str())
         {
@@ -247,7 +317,12 @@ impl LocalDetectionEngine {
             }
         }
 
-        for path_key in &["/data/path", "/data/name", "/data/image_path", "/data/module_path"] {
+        for path_key in &[
+            "/data/path",
+            "/data/name",
+            "/data/image_path",
+            "/data/module_path",
+        ] {
             if let Some(path) = event.pointer(path_key).and_then(|v| v.as_str()) {
                 if self.ioc_path.contains(&path.to_lowercase()) {
                     return Some(DetectionMatch {
@@ -262,7 +337,14 @@ impl LocalDetectionEngine {
         for domain_key in &["/data/domain", "/data/query", "/data/remote_address"] {
             if let Some(domain) = event.pointer(domain_key).and_then(|v| v.as_str()) {
                 let lower_domain = domain.to_lowercase();
-                if self.ioc_domain.contains(&lower_domain) || self.ioc_domain.iter().any(|d| lower_domain.ends_with(d) && (lower_domain.len() == d.len() || lower_domain.as_bytes()[lower_domain.len() - d.len() - 1] == b'.')) {
+                if self.ioc_domain.contains(&lower_domain)
+                    || self.ioc_domain.iter().any(|d| {
+                        lower_domain.ends_with(d)
+                            && (lower_domain.len() == d.len()
+                                || lower_domain.as_bytes()[lower_domain.len() - d.len() - 1]
+                                    == b'.')
+                    })
+                {
                     return Some(DetectionMatch {
                         match_type: "ioc_domain".to_string(),
                         match_value: domain.to_string(),
@@ -272,7 +354,10 @@ impl LocalDetectionEngine {
             }
         }
 
-        if let Some(ip) = event.pointer("/data/remote_address").and_then(|v| v.as_str()) {
+        if let Some(ip) = event
+            .pointer("/data/remote_address")
+            .and_then(|v| v.as_str())
+        {
             if self.ioc_ip.contains(&ip.to_lowercase()) {
                 return Some(DetectionMatch {
                     match_type: "ioc_ip".to_string(),
@@ -308,7 +393,14 @@ impl LocalDetectionEngine {
     }
 
     pub fn rule_count(&self) -> usize {
-        self.ioc_sha256.len() + self.ioc_sha1.len() + self.ioc_md5.len() + self.ioc_domain.len() + self.ioc_ip.len() + self.ioc_path.len() + self.ioc_registry.len() + self.suspicious_processes.len()
+        self.ioc_sha256.len()
+            + self.ioc_sha1.len()
+            + self.ioc_md5.len()
+            + self.ioc_domain.len()
+            + self.ioc_ip.len()
+            + self.ioc_path.len()
+            + self.ioc_registry.len()
+            + self.suspicious_processes.len()
     }
 
     pub fn detection_count(&self) -> u64 {
@@ -316,7 +408,13 @@ impl LocalDetectionEngine {
     }
 
     pub fn ioc_count(&self) -> usize {
-        self.ioc_sha256.len() + self.ioc_sha1.len() + self.ioc_md5.len() + self.ioc_domain.len() + self.ioc_ip.len() + self.ioc_path.len() + self.ioc_registry.len()
+        self.ioc_sha256.len()
+            + self.ioc_sha1.len()
+            + self.ioc_md5.len()
+            + self.ioc_domain.len()
+            + self.ioc_ip.len()
+            + self.ioc_path.len()
+            + self.ioc_registry.len()
     }
 }
 
@@ -377,7 +475,8 @@ mod tests {
     #[test]
     fn test_check_process_event_suspicious_match() {
         let mut engine = LocalDetectionEngine::new();
-        let result = engine.check_process_event(101, 0, "powershell.exe", "powershell.exe -enc abc");
+        let result =
+            engine.check_process_event(101, 0, "powershell.exe", "powershell.exe -enc abc");
         assert!(result.is_some());
         let action = result.unwrap();
         assert_eq!(action.action_type, "terminate_process");
@@ -394,7 +493,8 @@ mod tests {
     #[test]
     fn test_check_process_event_case_insensitive() {
         let mut engine = LocalDetectionEngine::new();
-        let result = engine.check_process_event(103, 0, "PowerShell.EXE", "powershell.exe -enc abc");
+        let result =
+            engine.check_process_event(103, 0, "PowerShell.EXE", "powershell.exe -enc abc");
         assert!(result.is_some());
     }
 
@@ -425,7 +525,10 @@ mod tests {
     #[test]
     fn test_check_registry_event_persistence() {
         let mut engine = LocalDetectionEngine::new();
-        let result = engine.check_registry_event(r"HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\Evil", 107);
+        let result = engine.check_registry_event(
+            r"HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\Evil",
+            107,
+        );
         assert!(result.is_some());
         assert_eq!(result.unwrap().action_type, "alert_only");
     }

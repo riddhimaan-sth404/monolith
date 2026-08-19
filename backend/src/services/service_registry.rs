@@ -1,7 +1,7 @@
+use crate::config::AppConfig;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use crate::config::AppConfig;
 
 pub struct ServiceRegistry {
     pub auth_service: Arc<super::auth_service::AuthService>,
@@ -15,7 +15,8 @@ pub struct ServiceRegistry {
     pub report_service: Arc<super::report_service::ReportService>,
     pub allowlist_service: Arc<super::allowlist_service::AllowlistService>,
     pub detection_service: Option<Arc<super::detection_service::DetectionService>>,
-    rate_limit_buckets: Arc<Mutex<HashMap<String, super::super::middleware::rate_limit::TokenBucket>>>,
+    rate_limit_buckets:
+        Arc<Mutex<HashMap<String, super::super::middleware::rate_limit::TokenBucket>>>,
 }
 
 impl ServiceRegistry {
@@ -36,7 +37,9 @@ impl ServiceRegistry {
         }
     }
 
-    pub async fn get_rate_limiter(&self) -> Arc<Mutex<HashMap<String, super::super::middleware::rate_limit::TokenBucket>>> {
+    pub async fn get_rate_limiter(
+        &self,
+    ) -> Arc<Mutex<HashMap<String, super::super::middleware::rate_limit::TokenBucket>>> {
         self.rate_limit_buckets.clone()
     }
 

@@ -1,6 +1,6 @@
-use axum::{extract::State, Json};
+use axum::{Json, extract::State};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 
 use crate::server::AppState;
@@ -58,7 +58,10 @@ pub async fn login(
     }
 
     // Check account lockout
-    let locked_until = user.get("locked_until").and_then(|v| v.as_str()).unwrap_or("");
+    let locked_until = user
+        .get("locked_until")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
     if !locked_until.is_empty() {
         let now = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
         if locked_until > now.as_str() {
@@ -73,14 +76,20 @@ pub async fn login(
     let username = user.get("username").and_then(|v| v.as_str()).unwrap_or("");
     let user_id_owned = user_id.to_string();
 
-    let password_hash = user.get("password_hash").and_then(|v| v.as_str()).unwrap_or("");
+    let password_hash = user
+        .get("password_hash")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
     let valid = match PasswordHashManager::verify(&req.password, password_hash) {
         Ok(v) => v,
         Err(e) => {
-            let _ = state.db.execute(
-                "UPDATE users SET failed_attempts = failed_attempts + 1 WHERE id = ?1",
-                &[DbParam::Text(user_id_owned.clone())],
-            ).await;
+            let _ = state
+                .db
+                .execute(
+                    "UPDATE users SET failed_attempts = failed_attempts + 1 WHERE id = ?1",
+                    &[DbParam::Text(user_id_owned.clone())],
+                )
+                .await;
             return Err((
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 Json(json!({"error": format!("password verification error: {}", e)})),
@@ -104,14 +113,27 @@ pub async fn login(
     }
 
     // Reset failed attempts on successful login
-    let _ = state.db.execute(
-        "UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = ?1",
-        &[DbParam::Text(user_id_owned)],
-    ).await;
+    let _ = state
+        .db
+        .execute(
+            "UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = ?1",
+            &[DbParam::Text(user_id_owned)],
+        )
+        .await;
 
-    let role = user.get("role").and_then(|v| v.as_str()).unwrap_or("viewer");
-    let mfa_required = user.get("mfa_required").and_then(|v| v.as_i64()).unwrap_or(0) == 1;
-    let mfa_secret = user.get("mfa_secret").and_then(|v| v.as_str()).unwrap_or("");
+    let role = user
+        .get("role")
+        .and_then(|v| v.as_str())
+        .unwrap_or("viewer");
+    let mfa_required = user
+        .get("mfa_required")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(0)
+        == 1;
+    let mfa_secret = user
+        .get("mfa_secret")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
 
     // Issue JWT
     let jwt_manager = state.config.auth.build_jwt_manager().map_err(|e| {
@@ -123,30 +145,38 @@ pub async fn login(
 
     if mfa_required && !mfa_secret.is_empty() {
         // Issue temporary 5-minute MFA token
-        let temp_jwt_manager = state.config.auth.build_jwt_manager_custom(300, 300).map_err(|e| {
-            (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({"error": format!("MFA JWT setup error: {}", e)})),
-            )
-        })?;
-        let mfa_token = temp_jwt_manager.issue_token(user_id, username, "mfa_pending").map_err(|e| {
-            (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({"error": format!("token generation error: {}", e)})),
-            )
-        })?;
+        let temp_jwt_manager = state
+            .config
+            .auth
+            .build_jwt_manager_custom(300, 300)
+            .map_err(|e| {
+                (
+                    axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({"error": format!("MFA JWT setup error: {}", e)})),
+                )
+            })?;
+        let mfa_token = temp_jwt_manager
+            .issue_token(user_id, username, "mfa_pending")
+            .map_err(|e| {
+                (
+                    axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({"error": format!("token generation error: {}", e)})),
+                )
+            })?;
         return Ok(Json(json!({
             "mfa_required": true,
             "mfa_token": mfa_token,
         })));
     }
 
-    let token = jwt_manager.issue_token(user_id, username, role).map_err(|e| {
-        (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": format!("token generation error: {}", e)})),
-        )
-    })?;
+    let token = jwt_manager
+        .issue_token(user_id, username, role)
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": format!("token generation error: {}", e)})),
+            )
+        })?;
 
     let refresh_token = jwt_manager.issue_refresh_token(user_id).map_err(|e| {
         (
@@ -207,12 +237,14 @@ pub async fn refresh_token(
         )
     })?;
 
-    let claims = jwt_manager.validate_token(&req.refresh_token).map_err(|_| {
-        (
-            axum::http::StatusCode::UNAUTHORIZED,
-            Json(json!({"error": "invalid or expired refresh token"})),
-        )
-    })?;
+    let claims = jwt_manager
+        .validate_token(&req.refresh_token)
+        .map_err(|_| {
+            (
+                axum::http::StatusCode::UNAUTHORIZED,
+                Json(json!({"error": "invalid or expired refresh token"})),
+            )
+        })?;
 
     // Look up user for role
     let users = state
@@ -238,14 +270,19 @@ pub async fn refresh_token(
 
     let user_id = user.get("id").and_then(|v| v.as_str()).unwrap_or("");
     let username = user.get("username").and_then(|v| v.as_str()).unwrap_or("");
-    let role = user.get("role").and_then(|v| v.as_str()).unwrap_or("viewer");
+    let role = user
+        .get("role")
+        .and_then(|v| v.as_str())
+        .unwrap_or("viewer");
 
-    let new_token = jwt_manager.issue_token(user_id, username, role).map_err(|e| {
-        (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": format!("token generation error: {}", e)})),
-        )
-    })?;
+    let new_token = jwt_manager
+        .issue_token(user_id, username, role)
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": format!("token generation error: {}", e)})),
+            )
+        })?;
 
     let new_refresh = jwt_manager.issue_refresh_token(user_id).map_err(|e| {
         (
@@ -348,7 +385,10 @@ pub async fn login_mfa(
         )
     })?;
 
-    let mfa_secret = user.get("mfa_secret").and_then(|v| v.as_str()).unwrap_or("");
+    let mfa_secret = user
+        .get("mfa_secret")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
     if mfa_secret.is_empty() {
         return Err((
             axum::http::StatusCode::BAD_REQUEST,
@@ -391,14 +431,19 @@ pub async fn login_mfa(
 
     let user_id = &claims.sub;
     let username = &claims.username;
-    let role = user.get("role").and_then(|v| v.as_str()).unwrap_or("viewer");
+    let role = user
+        .get("role")
+        .and_then(|v| v.as_str())
+        .unwrap_or("viewer");
 
-    let token = jwt_manager.issue_token(user_id, username, role).map_err(|e| {
-        (
-            axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"error": format!("token generation error: {}", e)})),
-        )
-    })?;
+    let token = jwt_manager
+        .issue_token(user_id, username, role)
+        .map_err(|e| {
+            (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": format!("token generation error: {}", e)})),
+            )
+        })?;
 
     let refresh_token = jwt_manager.issue_refresh_token(user_id).map_err(|e| {
         (

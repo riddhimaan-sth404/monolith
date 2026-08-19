@@ -9,19 +9,21 @@ fn find_protoc() -> Option<std::path::PathBuf> {
     let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").ok()?;
     let workspace_root = Path::new(&manifest_dir).parent()?;
 
-    let local = workspace_root.join(".tools").join("protoc").join("bin").join("protoc.exe");
+    let local = workspace_root
+        .join(".tools")
+        .join("protoc")
+        .join("bin")
+        .join("protoc.exe");
     if local.exists() {
         return Some(local);
     }
 
-    std::env::var_os("PATH")
-        .as_ref()
-        .and_then(|paths| {
-            std::env::split_paths(paths).find_map(|dir| {
-                let exe = dir.join("protoc.exe");
-                if exe.exists() { Some(exe) } else { None }
-            })
+    std::env::var_os("PATH").as_ref().and_then(|paths| {
+        std::env::split_paths(paths).find_map(|dir| {
+            let exe = dir.join("protoc.exe");
+            if exe.exists() { Some(exe) } else { None }
         })
+    })
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

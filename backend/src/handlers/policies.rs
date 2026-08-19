@@ -1,9 +1,9 @@
 use axum::{
-    extract::{State, Path, Query},
     Extension, Json,
+    extract::{Path, Query, State},
 };
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -99,7 +99,9 @@ pub async fn create(
             )
         })?;
 
-    Ok(Json(json!({"id": id, "message": "policy created successfully"})))
+    Ok(Json(
+        json!({"id": id, "message": "policy created successfully"}),
+    ))
 }
 
 pub async fn get(
@@ -108,10 +110,7 @@ pub async fn get(
 ) -> Result<Json<Value>, (axum::http::StatusCode, Json<Value>)> {
     let policies = state
         .db
-        .query_value(
-            "SELECT * FROM policies WHERE id = ?1",
-            &[DbParam::Text(id)],
-        )
+        .query_value("SELECT * FROM policies WHERE id = ?1", &[DbParam::Text(id)])
         .await
         .map_err(|e| {
             (
@@ -219,7 +218,10 @@ pub async fn assign(
     // Verify policy exists
     let policies = state
         .db
-        .query_value("SELECT id FROM policies WHERE id = ?1", &[DbParam::Text(id.clone())])
+        .query_value(
+            "SELECT id FROM policies WHERE id = ?1",
+            &[DbParam::Text(id.clone())],
+        )
         .await
         .map_err(|e| {
             (
@@ -240,7 +242,10 @@ pub async fn assign(
         .db
         .execute(
             "UPDATE endpoints SET policy_id = ?1 WHERE id = ?2",
-            &[DbParam::Text(id.clone()), DbParam::Text(req.endpoint_id.clone())],
+            &[
+                DbParam::Text(id.clone()),
+                DbParam::Text(req.endpoint_id.clone()),
+            ],
         )
         .await
         .map_err(|e| {
