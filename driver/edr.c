@@ -756,15 +756,7 @@ EdrDriverUnload(
     PEDR_DEVICE_CONTEXT ctx = g_DeviceContext;
 
     if (ctx != NULL && !ctx->AllowUnload) {
-        KdPrint(("[EDR] Driver unload blocked — bugchecking system with CRITICAL_PROCESS_DIED\n"));
-        KeBugCheckEx(
-            CRITICAL_PROCESS_DIED,
-            (ULONG_PTR)(ctx->AgentPid),
-            1,  // Reason: unauthorized driver unload attempt
-            0,
-            0
-        );
-        // Never returns
+        KdPrint(("[EDR] Warning: Driver unload requested without explicit agent AllowUnload signal.\n"));
     }
 
     KdPrint(("[EDR] Driver unloading cleanly\n"));

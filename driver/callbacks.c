@@ -81,7 +81,7 @@ EdrProcessCallback(
         InterlockedIncrement64(&context->Stats.EventsCollected);
 
         // Check if this is the registered agent terminating
-        if (HandleToULong(ProcessId) == HandleToULong(context->AgentPid)) {
+        if (context->AgentPid != NULL && HandleToULong(ProcessId) == HandleToULong(context->AgentPid)) {
             // Clear stale EPROCESS reference immediately (before it's freed)
             if (context->AgentProcess != NULL) {
                 ObDereferenceObject(context->AgentProcess);
@@ -175,13 +175,16 @@ EdrImageLoadCallback(
     RtlZeroMemory(&data, sizeof(data));
 
     data.ProcessId = HandleToULong(ProcessId);
-    data.BaseAddress = (ULONGLONG)ImageInfo->ImageBase;
-    data.ImageSize = ImageInfo->ImageSize;
+    if (ImageInfo != NULL) {
+        data.BaseAddress = (ULONGLONG)ImageInfo->ImageBase;
+        data.ImageSize = ImageInfo->ImageSize;
+    }
 
     // Copy image path
-    if (FullImageName->Length < sizeof(data.ImagePath)) {
-        RtlCopyMemory(data.ImagePath, FullImageName->Buffer, FullImageName->Length);
-        data.ImagePath[FullImageName->Length / sizeof(WCHAR)] = L'\0';
+    if (FullImageName->Buffer != NULL && FullImageName->Length > 0) {
+        USHORT copyBytes = min(FullImageName->Length, (USHORT)(sizeof(data.ImagePath) - sizeof(WCHAR)));
+        RtlCopyMemory(data.ImagePath, FullImageName->Buffer, copyBytes);
+        data.ImagePath[copyBytes / sizeof(WCHAR)] = L'\0';
     }
 
     EdrRingBufferWrite(
@@ -325,12 +328,10 @@ EdrRegistryCallback(
                 data.ProcessId = HandleToULong(callerPid);
                 data.OperationType = notifyClass;
 
-                if (objectName != NULL) {
-                    RtlCopyMemory(
-                        data.KeyPath,
-                        objectName->Buffer,
-                        min(objectName->Length, sizeof(data.KeyPath) - sizeof(WCHAR))
-                    );
+                if (objectName != NULL && objectName->Buffer != NULL && objectName->Length > 0) {
+                    USHORT copyBytes = min(objectName->Length, (USHORT)(sizeof(data.KeyPath) - sizeof(WCHAR)));
+                    RtlCopyMemory(data.KeyPath, objectName->Buffer, copyBytes);
+                    data.KeyPath[copyBytes / sizeof(WCHAR)] = L'\0';
                 }
 
                 EdrRingBufferWrite(
@@ -364,12 +365,10 @@ EdrRegistryCallback(
         data.ProcessId = HandleToULong(PsGetCurrentProcessId());
 
         // Get the key path
-        if (objectName != NULL) {
-            RtlCopyMemory(
-                data.KeyPath,
-                objectName->Buffer,
-                min(objectName->Length, sizeof(data.KeyPath) - sizeof(WCHAR))
-            );
+        if (objectName != NULL && objectName->Buffer != NULL && objectName->Length > 0) {
+            USHORT copyBytes = min(objectName->Length, (USHORT)(sizeof(data.KeyPath) - sizeof(WCHAR)));
+            RtlCopyMemory(data.KeyPath, objectName->Buffer, copyBytes);
+            data.KeyPath[copyBytes / sizeof(WCHAR)] = L'\0';
         }
 
         data.OperationType = notifyClass;

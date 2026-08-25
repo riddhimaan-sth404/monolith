@@ -135,7 +135,11 @@ ScanProcessMemoryRegions(
             (*SuspiciousCount)++;
         }
 
-        address = (PVOID)((ULONG_PTR)mbi.BaseAddress + mbi.RegionSize);
+        ULONG_PTR nextAddr = (ULONG_PTR)mbi.BaseAddress + mbi.RegionSize;
+        if (nextAddr <= (ULONG_PTR)address || nextAddr >= (ULONG_PTR)MM_HIGHEST_USER_ADDRESS) {
+            break;
+        }
+        address = (PVOID)nextAddr;
     }
 
     KeUnstackDetachProcess(&apcState);
@@ -156,37 +160,48 @@ EdrMemoryScanWorkItem(
     }
 
     // Guard against re-entrancy if previous sweep is still running
-    if (InterlockedExchange(&context->MemorySweepActive, TRUE)) {
+    if (InterlockedExchange(&context->MemorySweepActive, 1)) {
         return;
     }
 
     ULONG suspiciousCount = 0;
-    PEPROCESS process = NULL;
 
-    // Walk process list using ZwQuerySystemInformation
-    ULONG bufferSize = 256 * 1024; // 256 KB initial buffer
-    PVOID buffer = ExAllocatePool2(POOL_FLAG_NON_PAGED, bufferSize, TAG_EDR);
-    if (buffer == NULL) {
-        KdPrint(("[EDR] Memory sweep: failed to allocate process info buffer\n"));
-        return;
+    // Walk process list using ZwQuerySystemInformation with dynamic buffer sizing
+    ULONG bufferSize = 512 * 1024; // 512 KB initial buffer
+    PVOID buffer = NULL;
+    NTSTATUS enumStatus = STATUS_INFO_LENGTH_MISMATCH;
+    ULONG attempts = 0;
+
+    while (enumStatus == STATUS_INFO_LENGTH_MISMATCH && attempts < 4) {
+        buffer = ExAllocatePool2(POOL_FLAG_NON_PAGED, bufferSize, TAG_EDR);
+        if (buffer == NULL) {
+            break;
+        }
+        ULONG returnLength = 0;
+        enumStatus = ZwQuerySystemInformation(
+            SystemProcessInformation,
+            buffer,
+            bufferSize,
+            &returnLength
+        );
+        if (!NT_SUCCESS(enumStatus)) {
+            ExFreePoolWithTag(buffer, TAG_EDR);
+            buffer = NULL;
+            bufferSize = (returnLength > bufferSize) ? (returnLength + 64 * 1024) : (bufferSize * 2);
+        }
+        attempts++;
     }
 
-    NTSTATUS enumStatus = ZwQuerySystemInformation(
-        SystemProcessInformation,
-        buffer,
-        bufferSize,
-        NULL
-    );
-    if (!NT_SUCCESS(enumStatus)) {
-        ExFreePoolWithTag(buffer, TAG_EDR);
+    if (buffer == NULL || !NT_SUCCESS(enumStatus)) {
         KdPrint(("[EDR] Memory sweep: ZwQuerySystemInformation failed 0x%08X\n", enumStatus));
+        InterlockedExchange(&context->MemorySweepActive, 0);
         return;
     }
 
     PSYSTEM_PROCESS_INFORMATION spi = (PSYSTEM_PROCESS_INFORMATION)buffer;
     while (TRUE) {
         if (spi->UniqueProcessId != NULL) {
-            PEPROCESS process;
+            PEPROCESS process = NULL;
             NTSTATUS lookupStatus = PsLookupProcessByProcessId(spi->UniqueProcessId, &process);
             if (NT_SUCCESS(lookupStatus)) {
                 if (IsCriticalProcess(process)) {
@@ -208,7 +223,7 @@ EdrMemoryScanWorkItem(
         KdPrint(("[EDR] Memory sweep: %lu suspicious regions found in critical processes\n", suspiciousCount));
     }
 
-    context->MemorySweepActive = FALSE;
+    InterlockedExchange(&context->MemorySweepActive, 0);
 }
 
 //

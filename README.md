@@ -1,4 +1,4 @@
-﻿# Monolith Endpoint Detection and Response (EDR)
+# Monolith Endpoint Detection and Response (EDR)
 
 Monolith is an enterprise-grade Endpoint Detection and Response platform designed for Microsoft Windows environments. It provides real-time kernel-level telemetry collection, multi-stage threat scanning (combining static signature analysis, YARA rules, and EMBER LightGBM machine learning models), automated threat isolation and quarantine, and a centralized management architecture.
 
@@ -15,7 +15,7 @@ Monolith is built using a multi-component architecture leveraging Rust, Go, C (K
 | **Kernel Driver** | C (KMDF Driver) | Kernel-mode driver providing process creation, thread creation, image loading, registry modification, and file I/O monitoring callbacks with tamper-resistance controls. |
 | **File Scanner** | Go | Distributed file scanning engine integrating static PE parsing, YARA rule matching, EMBER LightGBM machine learning classification, and AES-256-GCM encrypted file quarantine. |
 | **YARA Matcher** | Rust | High-performance YARA sidecar service providing real-time pattern matching over dedicated HTTP interfaces. |
-| **Management Console** | C# (.NET 8 WPF) | Desktop management console providing live threat dashboards, system telemetry views, scan controls, policy configuration, allowlist management, and PDF/CSV reporting. |
+| **Management Console** | C# (WPF) | Desktop management console providing live threat dashboards, system telemetry views, scan controls, policy configuration, allowlist management, and PDF/CSV reporting. |
 
 ---
 
@@ -53,19 +53,29 @@ Monolith implements a multi-stage threat evaluation pipeline to balance high det
 Before building Monolith, ensure the following software tools are installed on your Windows system:
 
 - **Operating System**: Windows 10 / Windows 11 x64 or Windows Server 2019+
+- **Visual Studio 2022+ / Build Tools**:
+  - Desktop development with C++ (MSVC x64/x86 tools, Windows 11 SDK, ATL, CMake)
+  - .NET desktop development (.NET Framework 4.8.1 SDK & Targeting Pack)
+  - Windows Driver Kit (WDK) Visual Studio Integration
 - **Rust Compiler**: 1.80+ (`rustup default stable-x86_64-pc-windows-msvc`)
 - **Go**: 1.22+
-- **.NET SDK**: .NET 8.0 SDK with MSBuild (Visual Studio 2022 Community or Build Tools)
-- **Protocol Buffers Compiler**: `protoc` (accessible in PATH or auto-downloaded by setup scripts)
-- **Task Runner**: `task` (Taskfile runner, optional but recommended)
+- **Protocol Buffers Compiler**: `protoc` 29.3+
+- **Task Runner**: `task` (optional but recommended)
 
 ---
 
 ## Build & Execution Instructions
 
-### Initial Setup & Certificates
+### Initial Setup & Prerequisites Installation
 
-Run the setup and certificate generation scripts before starting services for the first time:
+Run the automated installer script to install all Visual Studio components, compilers, tools, directories, and certificates:
+
+```cmd
+:: Run automated full environment & Visual Studio components setup
+.\scripts\install-vs-components.bat
+```
+
+Or execute setup steps individually via PowerShell:
 
 ```powershell
 # 1. Install prerequisites and setup directory structure
@@ -107,8 +117,9 @@ cd scanner; go run ./cmd/scanner/ --config ../configs/scanner.yaml
 # Run YARA Matcher Sidecar (:50074)
 cargo run -p monolith-matcher -- --rules scanner/yara/rules --listen 127.0.0.1:50074
 
-# Run C# Management Console
-dotnet run --project gui-csharp/MonolithGui.csproj
+# Build & Run C# Management Console
+msbuild gui-csharp/MonolithGui.csproj /t:Restore,Build /p:Configuration=Release
+.\gui-csharp\bin\Release\MonolithGui.exe
 ```
 
 ### Environment Variables

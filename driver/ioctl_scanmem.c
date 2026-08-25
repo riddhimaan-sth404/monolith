@@ -121,7 +121,11 @@ EdrIoctlScanProcessMemory(
         }
 
         // Advance to next region
-        address = (PVOID)((ULONG_PTR)mbi.BaseAddress + mbi.RegionSize);
+        ULONG_PTR nextAddr = (ULONG_PTR)mbi.BaseAddress + mbi.RegionSize;
+        if (nextAddr <= (ULONG_PTR)address || nextAddr >= (ULONG_PTR)MM_HIGHEST_USER_ADDRESS) {
+            break;
+        }
+        address = (PVOID)nextAddr;
     }
 
     KeUnstackDetachProcess(&apcState);

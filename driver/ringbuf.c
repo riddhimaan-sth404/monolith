@@ -101,9 +101,11 @@ EdrRingBufferWrite(
         RtlZeroMemory(&Buffer->Buffer[currentWrite], Buffer->Size - currentWrite);
     }
 
+    ULONG writeOffset = wrapped ? 0 : (ULONG)currentWrite;
+
     // Write the payload first (so reader never sees partial header with wrong data)
     RtlCopyMemory(
-        &Buffer->Buffer[currentWrite + EDR_TLV_HEADER_SIZE],
+        &Buffer->Buffer[writeOffset + EDR_TLV_HEADER_SIZE],
         Data,
         DataLength
     );
@@ -112,7 +114,7 @@ EdrRingBufferWrite(
     MemoryBarrier();
 
     // Write the TLV header last
-    PEDR_TLV_HEADER header = (PEDR_TLV_HEADER)(&Buffer->Buffer[currentWrite]);
+    PEDR_TLV_HEADER header = (PEDR_TLV_HEADER)(&Buffer->Buffer[writeOffset]);
     header->EventType = (ULONG)EventType;
     header->DataLength = DataLength;
     header->SequenceNumber = InterlockedIncrement64((PLONG64)&Buffer->SequenceNumber);
