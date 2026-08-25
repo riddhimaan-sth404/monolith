@@ -1,0 +1,21 @@
+CompileFlags:
+  Add:
+    - "-fms-compatibility"
+    - "-fms-extensions"
+    - "-fdeclspec"
+    - "-D_AMD64_"
+    - "-D_WIN64"
+    - "-D_KERNEL_MODE"
+    - "-DWINNT=1"
+    - "-I${workspaceFolder}/driver"
+    - "-isystemC:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/km"
+    - "-isystemC:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/km/crt"
+    - "-isystemC:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/shared"
+    - "-isystemC:/Program Files (x86)/Windows Kits/10/Include/10.0.26100.0/um"
+    - "-isystemC:/Program Files (x86)/Windows Kits/10/Include/wdf/kmdf/1.33"
+  Remove:
+    - "-W*"
+Diagnostics:
+  Suppress:
+    - "pp_file_not_found"
+    - "drv_unknown_argument"

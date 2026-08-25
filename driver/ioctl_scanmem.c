@@ -69,7 +69,7 @@ EdrIoctlScanProcessMemory(
     WCHAR procName[260];
     procName[0] = L'\0';
     if (procNameAnsi != NULL) {
-        RtlStringCbPrintfW(procName, sizeof(procName), L"%S", procNameAnsi);
+        RtlStringCbPrintfW(procName, sizeof(procName), L"%hs", procNameAnsi);
     }
 
     // Attach to target process's address space

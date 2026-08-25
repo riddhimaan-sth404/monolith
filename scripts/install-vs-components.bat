@@ -48,7 +48,7 @@ if "%VS_PATH%"=="" (
     set "VS_PATH=C:\Program Files\Microsoft Visual Studio\18\Community"
 )
 
-echo [1/3] Modifying Visual Studio installation at: "%VS_PATH%"
+echo [1/4] Modifying Visual Studio installation at: "%VS_PATH%"
 echo Installing all required workloads and components directly (no .vsconfig required)...
 echo Components:
 echo   - .NET Desktop Development (Workload)
@@ -56,6 +56,7 @@ echo   - .NET Framework 4.8.1 SDK ^& Targeting Pack
 echo   - .NET Framework 4.8 SDK ^& Targeting Pack
 echo   - Desktop Development with C++ (Workload)
 echo   - MSVC C++ x64/x86 Build Tools
+echo   - MSVC Spectre-Mitigated C++ Runtimes ^& ATL
 echo   - Windows 11 SDK (10.0.26100.0)
 echo   - C++ ATL Support
 echo   - C++ CMake Project Tools
@@ -74,6 +75,8 @@ echo.
   --add Microsoft.Net.ComponentGroup.DevelopmentPrerequisites ^
   --add Microsoft.VisualStudio.Workload.NativeDesktop ^
   --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 ^
+  --add Microsoft.VisualStudio.Component.VC.Runtimes.x86.x64.Spectre ^
+  --add Microsoft.VisualStudio.Component.VC.ATL.Spectre ^
   --add Microsoft.VisualStudio.Component.Windows11SDK.26100 ^
   --add Microsoft.VisualStudio.Component.VC.ATL ^
   --add Microsoft.VisualStudio.Component.VC.CMake.Project ^
@@ -90,10 +93,32 @@ if %errorlevel% equ 0 (
     echo [INFO] VS Installer finished with exit code %errorlevel%.
 )
 
+:INSTALL_WDK
+echo.
+echo ==============================================================================
+echo [2/4] Verifying Windows Driver Kit (WDK) Kernel Headers ^& Build Tools
+echo ==============================================================================
+
+if not exist "C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\km\ntifs.h" (
+    echo [INFO] Installing Windows Driver Kit 10.0.26100 via winget...
+    winget install --id Microsoft.WindowsWDK.10.0.26100 --exact --silent --accept-package-agreements --accept-source-agreements
+    if %errorlevel% neq 0 (
+        echo [INFO] Falling back to direct WDK installer download...
+        powershell -NoProfile -Command ^
+            "$w = '$env:TEMP\wdksetup.exe'; " ^
+            "Invoke-WebRequest -Uri 'https://go.microsoft.com/fwlink/?linkid=2271960' -OutFile $w; " ^
+            "Start-Process -FilePath $w -ArgumentList '/quiet /norestart' -Wait; " ^
+            "Remove-Item $w -Force"
+    )
+    echo [OK] Windows Driver Kit installed.
+) else (
+    echo [OK] WDK Kernel headers (ntifs.h, wdf.h) are already present.
+)
+
 :INSTALL_EXTERNAL_TOOLS
 echo.
 echo ==============================================================================
-echo [2/3] Installing and Verifying External Project Requirements
+echo [3/4] Installing and Verifying External Project Requirements
 echo ==============================================================================
 
 :: Protobuf compiler (protoc)
@@ -168,7 +193,7 @@ if %errorlevel% neq 0 (
 
 echo.
 echo ==============================================================================
-echo [3/3] Creating Directories ^& Generating Development Certificates
+echo [4/4] Creating Directories ^& Generating Development Certificates
 echo ==============================================================================
 
 set "PROJECT_ROOT=%~dp0.."
@@ -183,7 +208,7 @@ if exist "%~dp0gen-certs.ps1" (
 
 echo.
 echo ==============================================================================
-echo [COMPLETE] All requirements and Visual Studio components are installed!
+echo [COMPLETE] All requirements, headers, and Visual Studio components are installed!
 echo ==============================================================================
 echo.
 pause

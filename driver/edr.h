@@ -4,16 +4,247 @@
 // EDR Kernel Driver - Shared Definitions
 //
 
+#if defined(__has_include) && __has_include(<ntifs.h>)
 #include <ntifs.h>     // ntddk.h + ZwQueryVirtualMemory, MEMORY_BASIC_INFORMATION, KAPC_STATE
 #include <wdf.h>
 #include <ntstrsafe.h>
+#else
+// Fallback definitions for Clang / IntelliSense when WDK is not in include path
+#include <windows.h>
+#include <winternl.h>
+#include <sal.h>
+
+#ifndef EXTERN_C
+#ifdef __cplusplus
+#define EXTERN_C extern "C"
+#else
+#define EXTERN_C extern
+#endif
+#endif
+
+typedef void *PVOID;
+typedef unsigned char UCHAR, *PUCHAR;
+typedef unsigned short USHORT, *PUSHORT;
+typedef unsigned long ULONG, *PULONG;
+typedef unsigned long long ULONGLONG, *PULONGLONG;
+typedef long LONG, *PLONG;
+typedef long long LONG64, *PLONG64;
+typedef void *HANDLE;
+typedef char CHAR, *PCHAR;
+typedef const char *PCSTR;
+typedef wchar_t WCHAR, *PWCHAR, *PWCH;
+typedef const wchar_t *PCWSTR;
+typedef LONG NTSTATUS;
+typedef void VOID;
+typedef unsigned char BOOLEAN;
+
+#ifndef STATUS_SUCCESS
+#define STATUS_SUCCESS                   ((NTSTATUS)0x00000000L)
+#define STATUS_UNSUCCESSFUL              ((NTSTATUS)0xC0000001L)
+#define STATUS_NOT_SUPPORTED             ((NTSTATUS)0xC00000BBL)
+#define STATUS_BUFFER_TOO_SMALL          ((NTSTATUS)0xC0000023L)
+#define STATUS_ACCESS_DENIED             ((NTSTATUS)0xC0000022L)
+#define STATUS_INVALID_PARAMETER         ((NTSTATUS)0xC000000DL)
+#define STATUS_INVALID_DEVICE_REQUEST    ((NTSTATUS)0xC0000010L)
+#define STATUS_INSUFFICIENT_RESOURCES    ((NTSTATUS)0xC000009AL)
+#define STATUS_NOT_FOUND                 ((NTSTATUS)0xC0000225L)
+#define STATUS_INFO_LENGTH_MISMATCH      ((NTSTATUS)0xC0000004L)
+#endif
+
+#ifndef NT_SUCCESS
+#define NT_SUCCESS(Status) (((NTSTATUS)(Status)) >= 0)
+#endif
+
+#ifndef _In_
+#define _In_
+#define _Out_
+#define _Inout_
+#define _In_opt_
+#define _Out_opt_
+#define _Inout_opt_
+#endif
+
+typedef struct _IMAGE_INFO {
+    union {
+        ULONG Properties;
+        struct {
+            ULONG ImageAddressingMode  : 8;
+            ULONG SystemModeImage      : 1;
+            ULONG ImageMappedToAllPids : 1;
+            ULONG ExtendedInfoPresent  : 1;
+            ULONG Reserved             : 21;
+        };
+    };
+    PVOID ImageBase;
+    ULONG ImageSelector;
+    SIZE_T ImageSize;
+    ULONG ImageSectionNumber;
+} IMAGE_INFO, *PIMAGE_INFO;
+
+typedef struct _KAPC_STATE {
+    LIST_ENTRY ApcListHead[2];
+    PVOID Process;
+    BOOLEAN InProgressFlags;
+    BOOLEAN KernelApcPending;
+    BOOLEAN UserApcPendingAll;
+} KAPC_STATE, *PKAPC_STATE;
+
+typedef struct _FAST_MUTEX {
+    LONG Count;
+    PVOID Owner;
+    ULONG Contention;
+    PVOID Event;
+    ULONG OldIrql;
+} FAST_MUTEX, *PFAST_MUTEX;
+
+typedef PVOID PEPROCESS;
+typedef PVOID PETHREAD;
+typedef PVOID WDFDRIVER;
+typedef PVOID WDFDEVICE;
+typedef PVOID WDFQUEUE;
+typedef PVOID WDFREQUEST;
+typedef PVOID WDFWORKITEM;
+typedef PVOID WDFTIMER;
+typedef PVOID WDFOBJECT;
+
+typedef enum _REG_NOTIFY_CLASS {
+    RegNtPreCreateKeyEx = 1,
+    RegNtPreDeleteKey = 2,
+    RegNtPreSetValueKey = 3,
+    RegNtPreDeleteValueKey = 4,
+    RegNtPreRenameKey = 5,
+} REG_NOTIFY_CLASS;
+
+typedef enum _OB_PREOP_CALLBACK_STATUS {
+    OB_PREOP_SUCCESS = 0
+} OB_PREOP_CALLBACK_STATUS;
+
+typedef struct _OB_PRE_OPERATION_INFORMATION {
+    PVOID Object;
+    PVOID ObjectType;
+    ULONG Operation;
+    BOOLEAN KernelHandle;
+    struct {
+        struct {
+            ULONG DesiredAccess;
+            ULONG OriginalDesiredAccess;
+        } CreateHandleInformation;
+        struct {
+            ULONG DesiredAccess;
+            ULONG OriginalDesiredAccess;
+        } DuplicateHandleInformation;
+    } *Parameters;
+} OB_PRE_OPERATION_INFORMATION, *POB_PRE_OPERATION_INFORMATION;
+
+#define OB_OPERATION_HANDLE_CREATE     0x00000001
+#define OB_OPERATION_HANDLE_DUPLICATE  0x00000002
+#define OB_FLT_REGISTRATION_VERSION    0x0100
+
+typedef struct _OB_OPERATION_REGISTRATION {
+    PVOID *ObjectType;
+    ULONG Operations;
+    PVOID PreOperation;
+    PVOID PostOperation;
+} OB_OPERATION_REGISTRATION, *POB_OPERATION_REGISTRATION;
+
+typedef struct _OB_CALLBACK_REGISTRATION {
+    USHORT Version;
+    USHORT OperationRegistrationCount;
+    UNICODE_STRING Altitude;
+    PVOID RegistrationContext;
+    OB_OPERATION_REGISTRATION *OperationRegistration;
+} OB_CALLBACK_REGISTRATION, *POB_CALLBACK_REGISTRATION;
+
+#define RtlStringCbPrintfW(dst, dstSize, fmt, ...) snwprintf(dst, (dstSize)/sizeof(WCHAR), fmt, __VA_ARGS__)
+#define RtlStringCbCopyW(dst, dstSize, src) wcsncpy_s(dst, (dstSize)/sizeof(WCHAR), src, _TRUNCATE)
+#define KdPrint(x)
+#define ExAcquireFastMutex(m)
+#define ExReleaseFastMutex(m)
+#define ExInitializeFastMutex(m)
+#define KeQueryPerformanceCounter(x) (*(LARGE_INTEGER*)&(ULONGLONG){0})
+#define KeQueryInterruptTime() 0
+#define MemoryBarrier()
+#define HandleToULong(h) ((ULONG)(ULONG_PTR)(h))
+#define POOL_FLAG_NON_PAGED 0x00000040ULL
+#define POOL_FLAG_PAGED     0x00000100ULL
+#define POOL_FLAG_UNINITIALIZED 0x00000002ULL
+#define PAGE_EXECUTE_READWRITE 0x40
+#define PAGE_EXECUTE 0x10
+#define PAGE_EXECUTE_READ 0x20
+#define PAGE_EXECUTE_WRITECOPY 0x80
+#define MEM_COMMIT 0x1000
+#define MEM_PRIVATE 0x20000
+#define MEM_MAPPED 0x40000
+extern PVOID *PsProcessType;
+extern PVOID *PsThreadType;
+NTSTATUS PsLookupProcessByProcessId(HANDLE ProcessId, PEPROCESS *Process);
+VOID ObDereferenceObject(PVOID Object);
+PEPROCESS PsGetCurrentProcess(VOID);
+HANDLE PsGetCurrentProcessId(VOID);
+HANDLE PsGetProcessId(PEPROCESS Process);
+VOID KeStackAttachProcess(PEPROCESS Process, PKAPC_STATE ApcState);
+VOID KeUnstackDetachProcess(PKAPC_STATE ApcState);
+PVOID ExAllocatePool2(ULONGLONG Flags, SIZE_T NumberOfBytes, ULONG Tag);
+VOID ExFreePoolWithTag(PVOID P, ULONG Tag);
+WCHAR RtlUpcaseUnicodeChar(WCHAR SourceCharacter);
+NTSTATUS PsSetCreateProcessNotifyRoutine(PVOID NotifyRoutine, BOOLEAN Remove);
+NTSTATUS PsSetCreateThreadNotifyRoutine(PVOID NotifyRoutine);
+NTSTATUS PsRemoveCreateThreadNotifyRoutine(PVOID NotifyRoutine);
+NTSTATUS PsSetLoadImageNotifyRoutine(PVOID NotifyRoutine);
+NTSTATUS PsRemoveLoadImageNotifyRoutine(PVOID NotifyRoutine);
+NTSTATUS CmRegisterCallbackEx(PVOID Function, PCUNICODE_STRING Altitude, PVOID Driver, PVOID Context, PLARGE_INTEGER Cookie, PVOID Reserved);
+NTSTATUS CmUnRegisterCallback(LARGE_INTEGER Cookie);
+NTSTATUS ObRegisterCallbacks(POB_CALLBACK_REGISTRATION CallbackRegistration, PVOID *RegistrationHandle);
+VOID ObUnRegisterCallbacks(PVOID RegistrationHandle);
+WDFDEVICE WdfIoQueueGetDevice(WDFQUEUE Queue);
+PEPROCESS IoGetRequestorProcess(PVOID Irp);
+PVOID WdfRequestWdmGetIrp(WDFREQUEST Request);
+NTSTATUS IoValidateDeviceIoControlAccess(PVOID Irp, ULONG RequiredAccess);
+NTSTATUS WdfRequestRetrieveOutputBuffer(WDFREQUEST Request, size_t MinimumRequiredLength, PVOID *Buffer, size_t *Length);
+NTSTATUS WdfRequestRetrieveInputBuffer(WDFREQUEST Request, size_t MinimumRequiredLength, PVOID *Buffer, size_t *Length);
+VOID WdfRequestCompleteWithInformation(WDFREQUEST Request, NTSTATUS Status, ULONG_PTR Information);
+VOID WdfWorkItemEnqueue(WDFWORKITEM WorkItem);
+WDFOBJECT WdfWorkItemGetParentObject(WDFWORKITEM WorkItem);
+WDFDEVICE WdfTimerGetParentObject(WDFTIMER Timer);
+
+#endif
 
 // Pool tag for EDR allocations
 #define TAG_EDR 'rdE'   // "Edr" (little-endian)
 
+#ifndef __drv_maxIRQL
+#define __drv_maxIRQL(x)
+#endif
+
+#ifndef NtCurrentProcess
+#define NtCurrentProcess() ((HANDLE)(LONG_PTR)-1)
+#endif
+
+#ifndef MM_HIGHEST_USER_ADDRESS
+#define MM_HIGHEST_USER_ADDRESS ((PVOID)(ULONG_PTR)0x7FFFFFFF0000ULL)
+#endif
+
 // PsGetProcessImageFileName — not declared in WDK 10.0.28000.0 headers but exported by ntoskrnl.
 EXTERN_C __drv_maxIRQL(APC_LEVEL)
 PCHAR NTAPI PsGetProcessImageFileName(_In_ PEPROCESS Process);
+
+// Virtual memory query declarations
+#ifndef _MEMORY_INFORMATION_CLASS_DEFINED
+#define _MEMORY_INFORMATION_CLASS_DEFINED
+typedef enum _MEMORY_INFORMATION_CLASS {
+    MemoryBasicInformation = 0
+} MEMORY_INFORMATION_CLASS;
+#endif
+
+EXTERN_C
+NTSTATUS NTAPI ZwQueryVirtualMemory(
+    _In_ HANDLE ProcessHandle,
+    _In_opt_ PVOID BaseAddress,
+    _In_ MEMORY_INFORMATION_CLASS MemoryInformationClass,
+    _Out_ PVOID MemoryInformation,
+    _In_ SIZE_T MemoryInformationLength,
+    _Out_opt_ PSIZE_T ReturnLength
+);
 
 // Process enumeration via ZwQuerySystemInformation (deprecated but still exported).
 // This is the only reliable way to enumerate processes from kernel mode in modern Windows.
@@ -21,6 +252,8 @@ typedef enum _SYSTEM_INFORMATION_CLASS {
     SystemProcessInformation = 5
 } SYSTEM_INFORMATION_CLASS;
 
+#ifndef _SYSTEM_PROCESS_INFORMATION_DEFINED
+#define _SYSTEM_PROCESS_INFORMATION_DEFINED
 typedef struct _SYSTEM_PROCESS_INFORMATION {
     ULONG NextEntryOffset;
     ULONG NumberOfThreads;
@@ -54,6 +287,7 @@ typedef struct _SYSTEM_PROCESS_INFORMATION {
     LARGE_INTEGER WriteTransferCount;
     LARGE_INTEGER OtherTransferCount;
 } SYSTEM_PROCESS_INFORMATION, *PSYSTEM_PROCESS_INFORMATION;
+#endif
 
 EXTERN_C
 NTSTATUS NTAPI ZwQuerySystemInformation(

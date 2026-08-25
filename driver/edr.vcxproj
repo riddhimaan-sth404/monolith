@@ -23,16 +23,18 @@
     <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
     <DriverType>KMDF</DriverType>
     <DriverTargetPlatform>Desktop</DriverTargetPlatform>
-    <DriverVersion>10.0.28000.0</DriverVersion>
-    <WindowsTargetPlatformVersion>10.0.28000.0</WindowsTargetPlatformVersion>
+    <DriverVersion>10.0.26100.0</DriverVersion>
+    <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
+    <SpectreMitigation>false</SpectreMitigation>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Driver</ConfigurationType>
     <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
     <DriverType>KMDF</DriverType>
     <DriverTargetPlatform>Desktop</DriverTargetPlatform>
-    <DriverVersion>10.0.28000.0</DriverVersion>
-    <WindowsTargetPlatformVersion>10.0.28000.0</WindowsTargetPlatformVersion>
+    <DriverVersion>10.0.26100.0</DriverVersion>
+    <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
+    <SpectreMitigation>false</SpectreMitigation>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ItemGroup>
@@ -57,6 +59,8 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
+      <SpectreMitigation>false</SpectreMitigation>
+      <Driver_SpectreMitigation>false</Driver_SpectreMitigation>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -76,6 +80,8 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
+      <SpectreMitigation>false</SpectreMitigation>
+      <Driver_SpectreMitigation>false</Driver_SpectreMitigation>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
