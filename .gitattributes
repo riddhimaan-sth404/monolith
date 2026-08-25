@@ -1,0 +1,4 @@
+# Exclude YARA rule files and directories from GitHub language statistics
+*.yar linguist-detectable=false
+*.yara linguist-detectable=false
+scanner/yara/** linguist-detectable=false linguist-vendored=true
