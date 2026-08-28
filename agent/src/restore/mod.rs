@@ -161,7 +161,7 @@ pub fn claim_partition(
     };
     let input_bytes = unsafe {
         let input_ptr: *const u8 = std::ptr::from_ref(&input).cast();
-        std::slice::from_raw_parts(input_ptr, std::mem::size_of::<ClaimInput>())
+        std::slice::from_raw_parts(input_ptr, size_of::<ClaimInput>())
     };
 
     match send_ioctl(

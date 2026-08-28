@@ -4,6 +4,14 @@
 // EDR Kernel Driver - Shared Definitions
 //
 
+// WDK pool tags use the multi-character constant idiom ('XxXx').
+// Suppress Clang's -Wmultichar warning for the entire driver;
+// MSVC accepts these without complaint.
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmultichar"
+#endif
+
 #if defined(__has_include) && __has_include(<ntifs.h>)
 #include <ntifs.h>     // ntddk.h + ZwQueryVirtualMemory, MEMORY_BASIC_INFORMATION, KAPC_STATE
 #include <wdf.h>
@@ -13,6 +21,8 @@
 #include <windows.h>
 #include <winternl.h>
 #include <sal.h>
+#include <stdio.h>
+#include <wchar.h>
 
 #ifndef EXTERN_C
 #ifdef __cplusplus
@@ -35,19 +45,39 @@ typedef const char *PCSTR;
 typedef wchar_t WCHAR, *PWCHAR, *PWCH;
 typedef const wchar_t *PCWSTR;
 typedef LONG NTSTATUS;
-typedef void VOID;
+#ifndef VOID
+#define VOID void
+#endif
 typedef unsigned char BOOLEAN;
 
 #ifndef STATUS_SUCCESS
 #define STATUS_SUCCESS                   ((NTSTATUS)0x00000000L)
+#endif
+#ifndef STATUS_UNSUCCESSFUL
 #define STATUS_UNSUCCESSFUL              ((NTSTATUS)0xC0000001L)
+#endif
+#ifndef STATUS_NOT_SUPPORTED
 #define STATUS_NOT_SUPPORTED             ((NTSTATUS)0xC00000BBL)
+#endif
+#ifndef STATUS_BUFFER_TOO_SMALL
 #define STATUS_BUFFER_TOO_SMALL          ((NTSTATUS)0xC0000023L)
+#endif
+#ifndef STATUS_ACCESS_DENIED
 #define STATUS_ACCESS_DENIED             ((NTSTATUS)0xC0000022L)
+#endif
+#ifndef STATUS_INVALID_PARAMETER
 #define STATUS_INVALID_PARAMETER         ((NTSTATUS)0xC000000DL)
+#endif
+#ifndef STATUS_INVALID_DEVICE_REQUEST
 #define STATUS_INVALID_DEVICE_REQUEST    ((NTSTATUS)0xC0000010L)
+#endif
+#ifndef STATUS_INSUFFICIENT_RESOURCES
 #define STATUS_INSUFFICIENT_RESOURCES    ((NTSTATUS)0xC000009AL)
+#endif
+#ifndef STATUS_NOT_FOUND
 #define STATUS_NOT_FOUND                 ((NTSTATUS)0xC0000225L)
+#endif
+#ifndef STATUS_INFO_LENGTH_MISMATCH
 #define STATUS_INFO_LENGTH_MISMATCH      ((NTSTATUS)0xC0000004L)
 #endif
 
@@ -155,7 +185,10 @@ typedef struct _OB_CALLBACK_REGISTRATION {
     OB_OPERATION_REGISTRATION *OperationRegistration;
 } OB_CALLBACK_REGISTRATION, *POB_CALLBACK_REGISTRATION;
 
-#define RtlStringCbPrintfW(dst, dstSize, fmt, ...) snwprintf(dst, (dstSize)/sizeof(WCHAR), fmt, __VA_ARGS__)
+#ifndef _TRUNCATE
+#define _TRUNCATE ((size_t)-1)
+#endif
+#define RtlStringCbPrintfW(dst, dstSize, fmt, ...) _snwprintf_s(dst, (dstSize)/sizeof(WCHAR), _TRUNCATE, fmt, __VA_ARGS__)
 #define RtlStringCbCopyW(dst, dstSize, src) wcsncpy_s(dst, (dstSize)/sizeof(WCHAR), src, _TRUNCATE)
 #define KdPrint(x)
 #define ExAcquireFastMutex(m)
@@ -163,18 +196,42 @@ typedef struct _OB_CALLBACK_REGISTRATION {
 #define ExInitializeFastMutex(m)
 #define KeQueryPerformanceCounter(x) (*(LARGE_INTEGER*)&(ULONGLONG){0})
 #define KeQueryInterruptTime() 0
+#ifndef MemoryBarrier
 #define MemoryBarrier()
+#endif
+#ifndef HandleToULong
 #define HandleToULong(h) ((ULONG)(ULONG_PTR)(h))
+#endif
+#ifndef POOL_FLAG_NON_PAGED
 #define POOL_FLAG_NON_PAGED 0x00000040ULL
+#endif
+#ifndef POOL_FLAG_PAGED
 #define POOL_FLAG_PAGED     0x00000100ULL
+#endif
+#ifndef POOL_FLAG_UNINITIALIZED
 #define POOL_FLAG_UNINITIALIZED 0x00000002ULL
+#endif
+#ifndef PAGE_EXECUTE_READWRITE
 #define PAGE_EXECUTE_READWRITE 0x40
+#endif
+#ifndef PAGE_EXECUTE
 #define PAGE_EXECUTE 0x10
+#endif
+#ifndef PAGE_EXECUTE_READ
 #define PAGE_EXECUTE_READ 0x20
+#endif
+#ifndef PAGE_EXECUTE_WRITECOPY
 #define PAGE_EXECUTE_WRITECOPY 0x80
+#endif
+#ifndef MEM_COMMIT
 #define MEM_COMMIT 0x1000
+#endif
+#ifndef MEM_PRIVATE
 #define MEM_PRIVATE 0x20000
+#endif
+#ifndef MEM_MAPPED
 #define MEM_MAPPED 0x40000
+#endif
 extern PVOID *PsProcessType;
 extern PVOID *PsThreadType;
 NTSTATUS PsLookupProcessByProcessId(HANDLE ProcessId, PEPROCESS *Process);
@@ -196,20 +253,274 @@ NTSTATUS CmRegisterCallbackEx(PVOID Function, PCUNICODE_STRING Altitude, PVOID D
 NTSTATUS CmUnRegisterCallback(LARGE_INTEGER Cookie);
 NTSTATUS ObRegisterCallbacks(POB_CALLBACK_REGISTRATION CallbackRegistration, PVOID *RegistrationHandle);
 VOID ObUnRegisterCallbacks(PVOID RegistrationHandle);
-WDFDEVICE WdfIoQueueGetDevice(WDFQUEUE Queue);
-PEPROCESS IoGetRequestorProcess(PVOID Irp);
-PVOID WdfRequestWdmGetIrp(WDFREQUEST Request);
-NTSTATUS IoValidateDeviceIoControlAccess(PVOID Irp, ULONG RequiredAccess);
-NTSTATUS WdfRequestRetrieveOutputBuffer(WDFREQUEST Request, size_t MinimumRequiredLength, PVOID *Buffer, size_t *Length);
-NTSTATUS WdfRequestRetrieveInputBuffer(WDFREQUEST Request, size_t MinimumRequiredLength, PVOID *Buffer, size_t *Length);
-VOID WdfRequestCompleteWithInformation(WDFREQUEST Request, NTSTATUS Status, ULONG_PTR Information);
-VOID WdfWorkItemEnqueue(WDFWORKITEM WorkItem);
-WDFOBJECT WdfWorkItemGetParentObject(WDFWORKITEM WorkItem);
-WDFDEVICE WdfTimerGetParentObject(WDFTIMER Timer);
+typedef struct _DRIVER_OBJECT DRIVER_OBJECT, *PDRIVER_OBJECT;
+typedef struct _WDFDEVICE_INIT WDFDEVICE_INIT, *PWDFDEVICE_INIT;
+
+#ifndef DRIVER_INITIALIZE
+typedef NTSTATUS (DRIVER_INITIALIZE)(
+    _In_ struct _DRIVER_OBJECT *DriverObject,
+    _In_ PUNICODE_STRING RegistryPath
+);
+typedef DRIVER_INITIALIZE *PDRIVER_INITIALIZE;
+#endif
+
+typedef NTSTATUS (EVT_WDF_DRIVER_DEVICE_ADD)(
+    _In_ WDFDRIVER Driver,
+    _Inout_ PWDFDEVICE_INIT DeviceInit
+);
+typedef EVT_WDF_DRIVER_DEVICE_ADD *PFN_WDF_DRIVER_DEVICE_ADD;
+
+typedef VOID (EVT_WDF_IO_QUEUE_IO_DEVICE_CONTROL)(
+    _In_ WDFQUEUE Queue,
+    _In_ WDFREQUEST Request,
+    _In_ size_t OutputBufferLength,
+    _In_ size_t InputBufferLength,
+    _In_ ULONG IoControlCode
+);
+typedef EVT_WDF_IO_QUEUE_IO_DEVICE_CONTROL *PFN_WDF_IO_QUEUE_IO_DEVICE_CONTROL;
+
+typedef VOID (EVT_WDF_DEVICE_CONTEXT_CLEANUP)(
+    _In_ WDFOBJECT Object
+);
+typedef EVT_WDF_DEVICE_CONTEXT_CLEANUP *PFN_WDF_DEVICE_CONTEXT_CLEANUP;
+
+typedef VOID (EVT_WDF_DRIVER_UNLOAD)(
+    _In_ WDFDRIVER Driver
+);
+typedef EVT_WDF_DRIVER_UNLOAD *PFN_WDF_DRIVER_UNLOAD;
+
+typedef VOID (EVT_WDF_TIMER)(
+    _In_ WDFTIMER Timer
+);
+typedef EVT_WDF_TIMER *PFN_WDF_TIMER;
+
+typedef VOID (EVT_WDF_WORKITEM)(
+    _In_ WDFWORKITEM WorkItem
+);
+typedef EVT_WDF_WORKITEM *PFN_WDF_WORKITEM;
+
+typedef enum _WDF_IO_QUEUE_DISPATCH_TYPE {
+    WdfIoQueueDispatchInvalid = 0,
+    WdfIoQueueDispatchSequential,
+    WdfIoQueueDispatchParallel,
+    WdfIoQueueDispatchManual,
+    WdfIoQueueDispatchMaximum
+} WDF_IO_QUEUE_DISPATCH_TYPE;
+
+typedef struct _WDF_DRIVER_CONFIG {
+    ULONG Size;
+    PFN_WDF_DRIVER_DEVICE_ADD EvtDriverDeviceAdd;
+    PFN_WDF_DRIVER_UNLOAD EvtDriverUnload;
+    ULONG DriverInitFlags;
+    ULONG DriverPoolTag;
+} WDF_DRIVER_CONFIG, *PWDF_DRIVER_CONFIG;
+
+typedef struct _WDF_OBJECT_ATTRIBUTES {
+    ULONG Size;
+    PFN_WDF_DEVICE_CONTEXT_CLEANUP EvtCleanupCallback;
+    PVOID EvtDestroyCallback;
+    ULONG ExecutionLevel;
+    ULONG SynchronizationScope;
+    WDFOBJECT ParentObject;
+    size_t ContextSizeOverride;
+    PVOID ContextTypeInfo;
+} WDF_OBJECT_ATTRIBUTES, *PWDF_OBJECT_ATTRIBUTES;
+
+typedef struct _WDF_IO_QUEUE_CONFIG {
+    ULONG Size;
+    WDF_IO_QUEUE_DISPATCH_TYPE DispatchType;
+    ULONG PowerManaged;
+    BOOLEAN AllowZeroLengthRequests;
+    BOOLEAN DefaultQueue;
+    PFN_WDF_IO_QUEUE_IO_DEVICE_CONTROL EvtIoDeviceControl;
+    PVOID EvtIoDefault;
+    PVOID EvtIoRead;
+    PVOID EvtIoWrite;
+    PVOID EvtIoStop;
+    PVOID EvtIoResume;
+    PVOID EvtIoCanceledOnQueue;
+    ULONG DriverPoolTag;
+} WDF_IO_QUEUE_CONFIG, *PWDF_IO_QUEUE_CONFIG;
+
+typedef struct _WDF_TIMER_CONFIG {
+    ULONG Size;
+    PFN_WDF_TIMER EvtTimerFunc;
+    LONGLONG Period;
+    BOOLEAN AutomaticSerialization;
+    ULONG TolerableDelay;
+    BOOLEAN UseHighResolutionTimer;
+} WDF_TIMER_CONFIG, *PWDF_TIMER_CONFIG;
+
+typedef struct _WDF_WORKITEM_CONFIG {
+    ULONG Size;
+    PFN_WDF_WORKITEM EvtWorkItemFunc;
+    BOOLEAN AutomaticSerialization;
+} WDF_WORKITEM_CONFIG, *PWDF_WORKITEM_CONFIG;
+
+#ifndef WDF_NO_HANDLE
+#define WDF_NO_HANDLE NULL
+#endif
+
+#ifndef WDF_NO_OBJECT_ATTRIBUTES
+#define WDF_NO_OBJECT_ATTRIBUTES NULL
+#endif
+
+#ifndef PAGED_CODE
+#define PAGED_CODE() ((void)0)
+#endif
+
+#ifndef UNREFERENCED_PARAMETER
+#define UNREFERENCED_PARAMETER(P) ((void)(P))
+#endif
+
+#ifndef WDF_REL_TIMEOUT_IN_SEC
+#define WDF_REL_TIMEOUT_IN_SEC(s) ((LONGLONG)(s) * -10000000LL)
+#endif
+
+#ifndef WDF_DRIVER_CONFIG_INIT
+#define WDF_DRIVER_CONFIG_INIT(Config, EvtDeviceAdd) \
+    do { \
+        RtlZeroMemory((Config), sizeof(WDF_DRIVER_CONFIG)); \
+        (Config)->Size = sizeof(WDF_DRIVER_CONFIG); \
+        (Config)->EvtDriverDeviceAdd = (EvtDeviceAdd); \
+    } while (0)
+#endif
+
+#ifndef WDF_OBJECT_ATTRIBUTES_INIT
+#define WDF_OBJECT_ATTRIBUTES_INIT(Attributes) \
+    do { \
+        RtlZeroMemory((Attributes), sizeof(WDF_OBJECT_ATTRIBUTES)); \
+        (Attributes)->Size = sizeof(WDF_OBJECT_ATTRIBUTES); \
+    } while (0)
+#endif
+
+#ifndef WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE
+#define WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE(Attributes, Type) \
+    do { \
+        WDF_OBJECT_ATTRIBUTES_INIT(Attributes); \
+    } while (0)
+#endif
+
+#ifndef WDF_IO_QUEUE_CONFIG_INIT_DEFAULT_QUEUE
+#define WDF_IO_QUEUE_CONFIG_INIT_DEFAULT_QUEUE(Config, _DispatchType) \
+    do { \
+        RtlZeroMemory((Config), sizeof(WDF_IO_QUEUE_CONFIG)); \
+        (Config)->Size = sizeof(WDF_IO_QUEUE_CONFIG); \
+        (Config)->DispatchType = (_DispatchType); \
+        (Config)->DefaultQueue = TRUE; \
+    } while (0)
+#endif
+
+#ifndef WDF_TIMER_CONFIG_INIT_PERIODIC
+#define WDF_TIMER_CONFIG_INIT_PERIODIC(Config, _EvtTimerFunc, _Period) \
+    do { \
+        RtlZeroMemory((Config), sizeof(WDF_TIMER_CONFIG)); \
+        (Config)->Size = sizeof(WDF_TIMER_CONFIG); \
+        (Config)->EvtTimerFunc = (_EvtTimerFunc); \
+        (Config)->Period = (LONGLONG)(_Period); \
+    } while (0)
+#endif
+
+#ifndef WDF_WORKITEM_CONFIG_INIT
+#define WDF_WORKITEM_CONFIG_INIT(Config, _EvtWorkItemFunc) \
+    do { \
+        RtlZeroMemory((Config), sizeof(WDF_WORKITEM_CONFIG)); \
+        (Config)->Size = sizeof(WDF_WORKITEM_CONFIG); \
+        (Config)->EvtWorkItemFunc = (_EvtWorkItemFunc); \
+    } while (0)
+#endif
+
+NTSTATUS WdfDriverCreate(
+    _In_ PDRIVER_OBJECT DriverObject,
+    _In_ PCUNICODE_STRING RegistryPath,
+    _In_opt_ PWDF_OBJECT_ATTRIBUTES DriverAttributes,
+    _In_ PWDF_DRIVER_CONFIG DriverConfig,
+    _Out_opt_ WDFDRIVER *Driver
+);
+NTSTATUS WdfDeviceCreate(
+    _Inout_ PWDFDEVICE_INIT *DeviceInit,
+    _In_opt_ PWDF_OBJECT_ATTRIBUTES DeviceAttributes,
+    _Out_ WDFDEVICE *Device
+);
+NTSTATUS WdfDeviceCreateSymbolicLink(
+    _In_ WDFDEVICE Device,
+    _In_ PCUNICODE_STRING SymbolicLinkName
+);
+NTSTATUS WdfIoQueueCreate(
+    _In_ WDFDEVICE Device,
+    _In_ PWDF_IO_QUEUE_CONFIG Config,
+    _In_opt_ PWDF_OBJECT_ATTRIBUTES QueueAttributes,
+    _Out_opt_ WDFQUEUE *Queue
+);
+VOID WdfObjectDelete(
+    _In_ WDFOBJECT Object
+);
+NTSTATUS WdfTimerCreate(
+    _In_ PWDF_TIMER_CONFIG Config,
+    _In_opt_ PWDF_OBJECT_ATTRIBUTES Attributes,
+    _Out_ WDFTIMER *Timer
+);
+BOOLEAN WdfTimerStart(
+    _In_ WDFTIMER Timer,
+    _In_ LONGLONG DueTime
+);
+BOOLEAN WdfTimerStop(
+    _In_ WDFTIMER Timer,
+    _In_ BOOLEAN Wait
+);
+NTSTATUS WdfWorkItemCreate(
+    _In_ PWDF_WORKITEM_CONFIG Config,
+    _In_opt_ PWDF_OBJECT_ATTRIBUTES Attributes,
+    _Out_ WDFWORKITEM *WorkItem
+);
+VOID WdfWorkItemEnqueue(
+    _In_ WDFWORKITEM WorkItem
+);
+WDFOBJECT WdfWorkItemGetParentObject(
+    _In_ WDFWORKITEM WorkItem
+);
+WDFDEVICE WdfTimerGetParentObject(
+    _In_ WDFTIMER Timer
+);
+WDFDEVICE WdfIoQueueGetDevice(
+    _In_ WDFQUEUE Queue
+);
+PEPROCESS IoGetRequestorProcess(
+    _In_ PVOID Irp
+);
+PVOID WdfRequestWdmGetIrp(
+    _In_ WDFREQUEST Request
+);
+NTSTATUS IoValidateDeviceIoControlAccess(
+    _In_ PVOID Irp,
+    _In_ ULONG RequiredAccess
+);
+NTSTATUS WdfRequestRetrieveOutputBuffer(
+    _In_ WDFREQUEST Request,
+    _In_ size_t MinimumRequiredLength,
+    _Out_ PVOID *Buffer,
+    _Out_opt_ size_t *Length
+);
+NTSTATUS WdfRequestRetrieveInputBuffer(
+    _In_ WDFREQUEST Request,
+    _In_ size_t MinimumRequiredLength,
+    _Out_ PVOID *Buffer,
+    _Out_opt_ size_t *Length
+);
+VOID WdfRequestCompleteWithInformation(
+    _In_ WDFREQUEST Request,
+    _In_ NTSTATUS Status,
+    _In_ ULONG_PTR Information
+);
+
+#ifndef WDF_DECLARE_CONTEXT_TYPE_WITH_NAME
+#define WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(_struct, _name) \
+    static __inline _struct* _name(WDFOBJECT Handle) { (VOID)Handle; return (_struct*)0; }
+#endif
 
 #endif
 
-// Pool tag for EDR allocations
+// Pool tag for EDR allocations — 'rdE' is the conventional WDK multi-char pool tag.
 #define TAG_EDR 'rdE'   // "Edr" (little-endian)
 
 #ifndef __drv_maxIRQL
@@ -248,9 +559,13 @@ NTSTATUS NTAPI ZwQueryVirtualMemory(
 
 // Process enumeration via ZwQuerySystemInformation (deprecated but still exported).
 // This is the only reliable way to enumerate processes from kernel mode in modern Windows.
+#ifndef _WINTERNL_
+#ifndef _SYSTEM_INFORMATION_CLASS_DEFINED
+#define _SYSTEM_INFORMATION_CLASS_DEFINED
 typedef enum _SYSTEM_INFORMATION_CLASS {
     SystemProcessInformation = 5
 } SYSTEM_INFORMATION_CLASS;
+#endif
 
 #ifndef _SYSTEM_PROCESS_INFORMATION_DEFINED
 #define _SYSTEM_PROCESS_INFORMATION_DEFINED
@@ -296,6 +611,11 @@ NTSTATUS NTAPI ZwQuerySystemInformation(
     _In_ ULONG SystemInformationLength,
     _Out_opt_ PULONG ReturnLength
 );
+#else
+#ifndef ZwQuerySystemInformation
+#define ZwQuerySystemInformation(Class, Info, Length, RetLen) NtQuerySystemInformation((SYSTEM_INFORMATION_CLASS)(Class), Info, Length, RetLen)
+#endif
+#endif
 
 // CRITICAL_PROCESS_DIED bugcheck code (0xEF) — defined in bugcodes.h via ntddk.h
 // but some build environments may not export it cleanly.

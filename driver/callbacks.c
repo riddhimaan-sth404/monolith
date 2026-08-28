@@ -64,7 +64,7 @@ EdrProcessCallback(
             sizeof(data)
         );
 
-        InterlockedIncrement64(&context->Stats.EventsCollected);
+        InterlockedIncrement64((PLONG64)&context->Stats.EventsCollected);
     } else {
         // Process terminate event
         EDR_PROCESS_TERMINATE_DATA data;
@@ -78,7 +78,7 @@ EdrProcessCallback(
             sizeof(data)
         );
 
-        InterlockedIncrement64(&context->Stats.EventsCollected);
+        InterlockedIncrement64((PLONG64)&context->Stats.EventsCollected);
 
         // Check if this is the registered agent terminating
         if (context->AgentPid != NULL && HandleToULong(ProcessId) == HandleToULong(context->AgentPid)) {
@@ -137,7 +137,7 @@ EdrThreadCallback(
             sizeof(data)
         );
 
-        InterlockedIncrement64(&context->Stats.EventsCollected);
+        InterlockedIncrement64((PLONG64)&context->Stats.EventsCollected);
     } else {
         // Thread terminate event
         EDR_THREAD_TERMINATE_DATA data;
@@ -152,7 +152,7 @@ EdrThreadCallback(
             sizeof(data)
         );
 
-        InterlockedIncrement64(&context->Stats.EventsCollected);
+        InterlockedIncrement64((PLONG64)&context->Stats.EventsCollected);
     }
 }
 
@@ -194,7 +194,7 @@ EdrImageLoadCallback(
         sizeof(data)
     );
 
-    InterlockedIncrement64(&context->Stats.EventsCollected);
+    InterlockedIncrement64((PLONG64)&context->Stats.EventsCollected);
 }
 
 //
@@ -341,7 +341,7 @@ EdrRegistryCallback(
                     sizeof(data)
                 );
 
-                InterlockedIncrement64(&context->Stats.EventsCollected);
+                InterlockedIncrement64((PLONG64)&context->Stats.EventsCollected);
                 KdPrint(("[EDR] Blocked registry write to protected key: PID=%lu\n",
                     HandleToULong(callerPid)));
 
@@ -390,7 +390,7 @@ EdrRegistryCallback(
             sizeof(data)
         );
 
-        InterlockedIncrement64(&context->Stats.EventsCollected);
+        InterlockedIncrement64((PLONG64)&context->Stats.EventsCollected);
         break;
     }
     default:
@@ -450,7 +450,7 @@ EdrObjectPreCallback(
             sizeof(data)
         );
 
-        InterlockedIncrement64(&context->Stats.EventsCollected);
+        InterlockedIncrement64((PLONG64)&context->Stats.EventsCollected);
     }
 
     return OB_PREOP_SUCCESS;

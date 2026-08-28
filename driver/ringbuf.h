@@ -4,6 +4,8 @@
 // Ring buffer public interface
 //
 
+#include "edr.h"
+
 NTSTATUS
 EdrRingBufferInitialize(
     _Out_ PEDR_RING_BUFFER* RingBuffer

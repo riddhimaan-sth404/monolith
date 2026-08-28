@@ -428,7 +428,7 @@ EdrIoctlGetEvents(
 
     *BytesReturned = EdrRingBufferRead(Context->RingBuffer, outputBuffer, OutputBufferLength);
 
-    InterlockedIncrement64(&Context->Stats.EventsCollected);
+    InterlockedIncrement64((PLONG64)&Context->Stats.EventsCollected);
     return STATUS_SUCCESS;
 }
 

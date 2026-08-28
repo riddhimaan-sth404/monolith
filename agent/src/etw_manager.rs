@@ -237,7 +237,7 @@ impl EtwManager {
                 std::ptr::null_mut(),
             );
             CloseTrace(trace_handle);
-            let _ = unsafe { Box::from_raw(ctx_ptr) };
+            let _ = Box::from_raw(ctx_ptr);
             stop_session(&CONTROLTRACE_HANDLE { Value: 0 }, &session_name);
             tracing::info!("ETW manager stopped");
         }

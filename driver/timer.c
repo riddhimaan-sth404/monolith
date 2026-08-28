@@ -280,7 +280,7 @@ EdrInitializeMemoryTimer(
     WDF_TIMER_CONFIG_INIT_PERIODIC(
         &timerConfig,
         EdrMemoryTimerDpc,
-        (LONG)WDF_REL_TIMEOUT_IN_SEC(MEMORY_SWEEP_INTERVAL_SEC)
+        WDF_REL_TIMEOUT_IN_SEC(MEMORY_SWEEP_INTERVAL_SEC)
     );
     WDF_OBJECT_ATTRIBUTES_INIT(&timerAttributes);
     timerAttributes.ParentObject = Device;
